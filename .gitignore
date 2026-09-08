@@ -9,3 +9,10 @@ __pycache__/
 
 # node
 node_modules/
+
+# 내려받은 영상·음성 (yt-dlp / whisper 산출물)
+*.mp4
+*.webm
+*.mkv
+*.m4a
+*.mp3
