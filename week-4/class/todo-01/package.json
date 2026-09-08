@@ -1,0 +1,13 @@
+{
+  "name": "todo-01",
+  "version": "1.0.0",
+  "private": true,
+  "description": "할 일을 txt 파일에 저장하는 간단한 투두 앱",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}

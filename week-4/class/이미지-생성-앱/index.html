@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>상상공작소 — AI 이미지 생성</title>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <!-- ⚠️ 모든 CDN 버전 고정. Babel 은 반드시 7.x -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.9/babel.min.js"></script>
+  <style>
+    /* Tailwind 유틸리티로 표현 불가한 것만 */
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+    @keyframes popIn { from { opacity: 0; transform: scale(.96) translateY(10px) } to { opacity: 1; transform: none } }
+    @keyframes sweep { 0% { transform: translateX(-140%) } 100% { transform: translateX(420%) } }
+    @keyframes riseIn { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: none } }
+    .anim-fade { animation: fadeIn .2s ease-out both }
+    .anim-pop { animation: popIn .26s cubic-bezier(.2,.9,.3,1.15) both }
+    .anim-rise { animation: riseIn .3s ease-out both }
+    .anim-sweep { animation: sweep 1.6s ease-in-out infinite }
+    /* 생성이 진행되면 흐림이 서서히 걷힌다 */
+    .art-reveal { transition: filter .4s linear, transform .4s linear }
+    /* 확대 보기의 이미지는 화면 높이를 넘지 않게 한다 (--ar = 가로/세로 비율) */
+    .lightbox-media { width: min(100%, calc(44vh * var(--ar))) }
+    @media (min-width: 1024px) { .lightbox-media { width: min(100%, calc(78vh * var(--ar))) } }
+    /* 얇은 스크롤바 */
+    .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px }
+    .scroll-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 999px }
+    .scroll-thin::-webkit-scrollbar-track { background: transparent }
+  </style>
+</head>
+<body class="bg-[#0a0a0f] text-slate-200 antialiased">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // ========================================
+    // React Hooks
+    // ========================================
+    const { useState, useEffect, useMemo, useRef, useCallback, useContext, createContext } = React;
+
+    // API 주소는 상대 경로로. localhost 를 박아두면 배포했을 때 깨진다.
+    const API_BASE_URL = '/api';
+    const STORAGE_KEY = 'imagination-studio-v1';
+
+    // ========================================
+    // 🎲 유틸 — 해시 / 시드 난수 / 포맷
+    // ========================================
+
+    // 문자열 → 32비트 정수 해시(FNV-1a). 같은 프롬프트에서 항상 같은 그림이 나오게 하는 씨앗.
+    function hashString(str) {
+      let h = 2166136261 >>> 0;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+      }
+      return h >>> 0;
+    }
+
+    // 시드 기반 난수(mulberry32). 시드가 같으면 항상 같은 수열이 나온다.
+    function makeRng(seed) {
+      let t = seed >>> 0;
+      return function () {
+        t = (t + 0x6D2B79F5) >>> 0;
+        let r = Math.imul(t ^ (t >>> 15), 1 | t);
+        r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+        return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+
+    function timeAgo(ts) {
+      const diff = Math.floor((Date.now() - ts) / 1000);
+      if (diff < 60) return '방금 전';
+      if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+      return `${Math.floor(diff / 86400)}일 전`;
+    }
+
+    const formatCount = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'k' : String(n));
+    const hasHangul = (text) => /[ㄱ-ㆎ가-힣]/.test(text);
+
+    // ========================================
+    // 🎨 옵션 상수 — 스타일 / 비율 / 예시
+    // ========================================
+    // palette 는 데모 모드에서 그림을 그릴 때 쓰는 색이고,
+    // 실제 생성에서는 server.js 의 STYLE_SUFFIX(영어 화풍 지시어)가 대신 쓰인다.
+    const STYLE_PRESETS = {
+      photo: {
+        label: '실사 사진', emoji: '📷',
+        palette: [[28, 45, 62], [205, 32, 46], [35, 25, 86], [12, 40, 34]],
+        blobs: 5, blur: 34, overlay: 'grain', vignette: 0.5, focal: 0.5,
+      },
+      anime: {
+        label: '애니메이션', emoji: '🌸',
+        palette: [[330, 80, 80], [200, 85, 72], [45, 95, 80], [270, 60, 70]],
+        blobs: 6, blur: 26, overlay: 'sparkle', vignette: 0.18, focal: 0.75,
+      },
+      render3d: {
+        label: '3D 렌더', emoji: '🧊',
+        palette: [[265, 70, 60], [190, 80, 55], [320, 65, 60], [222, 50, 26]],
+        blobs: 5, blur: 30, overlay: 'gloss', vignette: 0.45, focal: 0.7,
+      },
+      oil: {
+        label: '유화', emoji: '🖌️',
+        palette: [[35, 70, 50], [150, 35, 32], [8, 65, 45], [45, 55, 72]],
+        blobs: 7, blur: 18, overlay: 'brush', vignette: 0.42, focal: 0.45,
+      },
+      cyber: {
+        label: '사이버펑크', emoji: '🌃',
+        palette: [[300, 95, 58], [185, 95, 55], [250, 80, 30], [330, 90, 50]],
+        blobs: 6, blur: 30, overlay: 'scan', vignette: 0.62, focal: 0.65,
+      },
+      minimal: {
+        label: '미니멀', emoji: '◻️',
+        palette: [[35, 25, 88], [30, 15, 72], [210, 12, 42], [20, 30, 60]],
+        blobs: 3, blur: 42, overlay: 'geo', vignette: 0.12, focal: 0.35,
+      },
+    };
+
+    const STYLE_OPTIONS = Object.keys(STYLE_PRESETS).map((key) => ({
+      value: key,
+      label: `${STYLE_PRESETS[key].emoji} ${STYLE_PRESETS[key].label}`,
+    }));
+
+    const ASPECTS = [
+      { value: '1:1', label: '1:1', cls: 'aspect-square', w: 1024, h: 1024 },
+      { value: '3:2', label: '3:2', cls: 'aspect-[3/2]', w: 1200, h: 800 },
+      { value: '2:3', label: '2:3', cls: 'aspect-[2/3]', w: 800, h: 1200 },
+      { value: '16:9', label: '16:9', cls: 'aspect-video', w: 1280, h: 720 },
+    ];
+
+    const aspectOf = (key) => ASPECTS.find((a) => a.value === key) || ASPECTS[0];
+    const COUNT_OPTIONS = [
+      { value: 1, label: '1장' },
+      { value: 2, label: '2장' },
+      { value: 4, label: '4장' },
+    ];
+
+    // 둘러보기 탭에 쓰는 예시 프롬프트 (썸네일은 비용 없이 데모 아트로 그린다)
+    const EXPLORE_FEED = [
+      { id: 'ex1', author: '@민트초코', prompt: '비 내리는 서울 골목, 젖은 아스팔트에 번지는 네온 간판', styleKey: 'cyber', aspect: '3:2', likes: 1284 },
+      { id: 'ex2', author: '@달빛서점', prompt: '책으로 둘러싸인 작은 다락방, 창밖은 눈, 따뜻한 램프 불빛', styleKey: 'oil', aspect: '1:1', likes: 932 },
+      { id: 'ex3', author: '@우주먼지', prompt: '토성 고리 위를 걷는 우주비행사, 멀리 보이는 지구', styleKey: 'render3d', aspect: '16:9', likes: 2410 },
+      { id: 'ex4', author: '@봄나들이', prompt: '벚꽃잎이 흩날리는 시골 기차역에 서 있는 교복 입은 학생', styleKey: 'anime', aspect: '2:3', likes: 1770 },
+      { id: 'ex5', author: '@정물화가', prompt: '아침 식탁 위 도자기 주전자와 레몬 두 개, 창으로 드는 빛', styleKey: 'photo', aspect: '1:1', likes: 645 },
+      { id: 'ex6', author: '@여백', prompt: '안개 낀 호수 위에 홀로 선 나무 한 그루, 거의 흑백에 가까운 색', styleKey: 'minimal', aspect: '3:2', likes: 1122 },
+      { id: 'ex7', author: '@심야식당', prompt: '김이 올라오는 라멘 한 그릇이 놓인 나무 카운터, 늦은 밤', styleKey: 'photo', aspect: '1:1', likes: 2033 },
+      { id: 'ex8', author: '@픽셀정원', prompt: '유리병 안에 담긴 작은 숲, 반딧불이와 이끼', styleKey: 'render3d', aspect: '2:3', likes: 1509 },
+    ];
+
+    // ========================================
+    // 🖼️ 데모 이미지 엔진 — 시드로 SVG 아트를 그린다
+    //    API 키 없이도 앱이 굴러가게 하고, 실제 생성 중에는 미리보기(흐린 화면)로 쓰인다.
+    // ========================================
+    function buildArtSvg({ seed, styleKey, uid, width = '100%', height = '100%' }) {
+      const st = STYLE_PRESETS[styleKey] || STYLE_PRESETS.photo;
+      const rng = makeRng(seed);
+      const hueShift = Math.floor(rng() * 360);
+
+      // 프리셋 팔레트를 프롬프트 해시만큼 회전시켜, 프롬프트마다 다른 색이 나오게 한다
+      const color = (i, opt) => {
+        const o = opt || {};
+        const p = st.palette[i % st.palette.length];
+        const h = Math.round((p[0] + hueShift) % 360);
+        const s = clamp(Math.round(p[1] + (o.ds || 0)), 0, 100);
+        const l = clamp(Math.round(p[2] + (o.dl || 0)), 0, 100);
+        return `hsla(${h},${s}%,${l}%,${o.a === undefined ? 1 : o.a})`;
+      };
+
+      const defs = [];
+      const body = [];
+
+      // 1) 배경 그라디언트
+      defs.push(
+        `<linearGradient id="${uid}-bg" x1="0" y1="0" x2="1" y2="1">` +
+          `<stop offset="0%" stop-color="${color(0, { dl: -18 })}"/>` +
+          `<stop offset="55%" stop-color="${color(3, { dl: -26 })}"/>` +
+          `<stop offset="100%" stop-color="${color(1, { dl: -34 })}"/>` +
+        `</linearGradient>`
+      );
+      body.push(`<rect width="400" height="400" fill="url(#${uid}-bg)"/>`);
+
+      // 2) 흐릿한 빛 덩어리 레이어
+      defs.push(
+        `<filter id="${uid}-soft" x="-35%" y="-35%" width="170%" height="170%">` +
+          `<feGaussianBlur stdDeviation="${(st.blur / 2).toFixed(1)}"/>` +
+        `</filter>`
+      );
+      const blobs = [];
+      for (let i = 0; i < st.blobs; i++) {
+        const cx = Math.round(30 + rng() * 340);
+        const cy = Math.round(30 + rng() * 340);
+        const r = Math.round(60 + rng() * 140);
+        const ci = Math.floor(rng() * 4);
+        defs.push(
+          `<radialGradient id="${uid}-b${i}">` +
+            `<stop offset="0%" stop-color="${color(ci, { dl: 14, a: 0.95 })}"/>` +
+            `<stop offset="100%" stop-color="${color(ci, { dl: 6, a: 0 })}"/>` +
+          `</radialGradient>`
+        );
+        blobs.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${uid}-b${i})"/>`);
+      }
+      body.push(`<g filter="url(#${uid}-soft)">${blobs.join('')}</g>`);
+
+      // 3) 시선이 머무는 주제(피사체) 자리
+      const fx = 200 + Math.round((rng() - 0.5) * 100);
+      const fy = 210 + Math.round((rng() - 0.5) * 80);
+      const fr = 70 + Math.round(rng() * 55);
+      defs.push(
+        `<radialGradient id="${uid}-focal">` +
+          `<stop offset="0%" stop-color="${color(2, { dl: 24, a: st.focal })}"/>` +
+          `<stop offset="65%" stop-color="${color(2, { dl: 10, a: st.focal * 0.35 })}"/>` +
+          `<stop offset="100%" stop-color="${color(2, { a: 0 })}"/>` +
+        `</radialGradient>`
+      );
+      body.push(
+        `<ellipse cx="${fx}" cy="${fy}" rx="${Math.round(fr * 1.15)}" ry="${fr}" ` +
+        `fill="url(#${uid}-focal)" filter="url(#${uid}-soft)"/>`
+      );
+
+      // 4) 스타일별 마감 처리
+      if (st.overlay === 'scan') {
+        defs.push(
+          `<pattern id="${uid}-scan" width="4" height="4" patternUnits="userSpaceOnUse">` +
+            `<rect width="4" height="2" fill="rgba(0,0,0,.34)"/>` +
+          `</pattern>`
+        );
+        body.push(`<rect width="400" height="400" fill="url(#${uid}-scan)" opacity=".55"/>`);
+        for (let i = 0; i < 3; i++) {
+          const y = Math.round(rng() * 400);
+          body.push(`<rect x="0" y="${y}" width="400" height="1.5" fill="${color(1, { dl: 26, a: 0.85 })}"/>`);
+        }
+      } else if (st.overlay === 'brush') {
+        defs.push(`<filter id="${uid}-brush"><feGaussianBlur stdDeviation="1.6"/></filter>`);
+        const strokes = [];
+        for (let i = 0; i < 28; i++) {
+          const x = (rng() * 400).toFixed(1);
+          const y = (rng() * 400).toFixed(1);
+          const w = (18 + rng() * 48).toFixed(1);
+          const rot = Math.round(rng() * 180);
+          strokes.push(
+            `<rect x="${x}" y="${y}" width="${w}" height="5" rx="2.5" ` +
+            `fill="${color(Math.floor(rng() * 4), { dl: 12, a: 0.5 })}" transform="rotate(${rot} ${x} ${y})"/>`
+          );
+        }
+        body.push(`<g filter="url(#${uid}-brush)">${strokes.join('')}</g>`);
+      } else if (st.overlay === 'gloss') {
+        body.push(`<ellipse cx="130" cy="105" rx="150" ry="78" fill="rgba(255,255,255,.10)" filter="url(#${uid}-soft)"/>`);
+      } else if (st.overlay === 'sparkle') {
+        for (let i = 0; i < 14; i++) {
+          const x = (rng() * 400).toFixed(1);
+          const y = (rng() * 400).toFixed(1);
+          const r = (0.8 + rng() * 2.2).toFixed(1);
+          body.push(`<circle cx="${x}" cy="${y}" r="${r}" fill="rgba(255,255,255,.8)"/>`);
+        }
+      } else if (st.overlay === 'geo') {
+        const cx = Math.round(90 + rng() * 220);
+        const cy = Math.round(90 + rng() * 220);
+        const r = Math.round(40 + rng() * 90);
+        body.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color(2, { dl: -28, a: 0.5 })}" stroke-width="1.5"/>`);
+        body.push(`<line x1="0" y1="${cy}" x2="400" y2="${cy}" stroke="${color(2, { dl: -22, a: 0.35 })}" stroke-width="1"/>`);
+      }
+
+      // 5) 필름 그레인 — 사진 스타일은 더 강하게
+      defs.push(
+        `<filter id="${uid}-grain">` +
+          `<feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/>` +
+          `<feColorMatrix type="saturate" values="0"/>` +
+        `</filter>`
+      );
+      body.push(
+        `<rect width="400" height="400" filter="url(#${uid}-grain)" ` +
+        `opacity="${st.overlay === 'grain' ? 0.22 : 0.09}" style="mix-blend-mode:overlay"/>`
+      );
+
+      // 6) 비네트
+      defs.push(
+        `<radialGradient id="${uid}-vig">` +
+          `<stop offset="55%" stop-color="rgba(0,0,0,0)"/>` +
+          `<stop offset="100%" stop-color="rgba(0,0,0,${st.vignette})"/>` +
+        `</radialGradient>`
+      );
+      body.push(`<rect width="400" height="400" fill="url(#${uid}-vig)"/>`);
+
+      return (
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="${width}" height="${height}" ` +
+        `preserveAspectRatio="xMidYMid slice"><defs>${defs.join('')}</defs>${body.join('')}</svg>`
+      );
+    }
+
+    // 시드로 그린 SVG 를 화면에 붙인다
+    function ArtImage({ seed, styleKey, blur = 0 }) {
+      const uid = useMemo(() => 'a' + Math.random().toString(36).slice(2, 9), []);
+      const svg = useMemo(() => buildArtSvg({ seed: seed || 0, styleKey, uid }), [seed, styleKey, uid]);
+      return (
+        <div
+          className="w-full h-full art-reveal"
+          style={blur > 0 ? { filter: `blur(${blur}px)`, transform: 'scale(1.1)' } : undefined}
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
+      );
+    }
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+    function Button({ variant = 'primary', size = 'md', className = '', children, ...props }) {
+      const variants = {
+        primary: 'bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-900/40 disabled:hover:bg-violet-600',
+        secondary: 'bg-white/10 hover:bg-white/[.16] text-slate-100 border border-white/10',
+        ghost: 'bg-transparent hover:bg-white/10 text-slate-300',
+        danger: 'bg-rose-600/90 hover:bg-rose-500 text-white',
+      };
+      const sizes = {
+        sm: 'px-3 py-1.5 text-xs rounded-lg gap-1',
+        md: 'px-4 py-2 text-sm rounded-xl gap-1.5',
+        lg: 'px-6 py-3 text-base rounded-2xl gap-2',
+      };
+      return (
+        <button
+          className={`inline-flex items-center justify-center font-semibold transition
+            disabled:opacity-40 disabled:cursor-not-allowed
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70
+            ${variants[variant]} ${sizes[size]} ${className}`}
+          {...props}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function IconButton({ label, className = '', children, ...props }) {
+      return (
+        <button
+          aria-label={label}
+          title={label}
+          className={`inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-300
+            bg-white/5 hover:bg-white/15 hover:text-white border border-white/10 transition
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70 ${className}`}
+          {...props}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function Badge({ children, tone = 'slate', className = '' }) {
+      const tones = {
+        slate: 'bg-white/8 text-slate-300 border-white/10',
+        violet: 'bg-violet-500/20 text-violet-200 border-violet-400/30',
+        amber: 'bg-amber-500/15 text-amber-200 border-amber-400/30',
+        rose: 'bg-rose-500/15 text-rose-200 border-rose-400/30',
+        emerald: 'bg-emerald-500/15 text-emerald-200 border-emerald-400/30',
+      };
+      return (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium ${tones[tone]} ${className}`}>
+          {children}
+        </span>
+      );
+    }
+
+    function Card({ className = '', children }) {
+      return (
+        <div className={`bg-white/[.04] border border-white/10 rounded-2xl ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function ChipGroup({ options, value, onChange, className = '' }) {
+      return (
+        <div className={`flex flex-wrap gap-1.5 ${className}`}>
+          {options.map((opt) => {
+            const active = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => onChange(opt.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition whitespace-nowrap
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70
+                  ${active
+                    ? 'bg-violet-500/25 border-violet-400/60 text-violet-100'
+                    : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-200'}`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    function Slider({ label, value, min, max, step = 1, onChange, hint, disabled = false }) {
+      return (
+        <div className={disabled ? 'opacity-45' : ''}>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-slate-400">{label}</span>
+            <span className="text-xs font-mono text-slate-200">{value}</span>
+          </div>
+          <input
+            type="range"
+            min={min} max={max} step={step} value={value}
+            disabled={disabled}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="w-full h-1.5 accent-violet-500 cursor-pointer disabled:cursor-not-allowed"
+          />
+          {hint && <p className="mt-1 text-[11px] text-slate-500">{hint}</p>}
+        </div>
+      );
+    }
+
+    function Input({ label, hint, className = '', ...props }) {
+      return (
+        <div>
+          {label && <label className="block text-xs font-medium text-slate-400 mb-1.5">{label}</label>}
+          <input
+            className={`w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-100
+              placeholder:text-slate-600 focus:outline-none focus:border-violet-400/60 transition ${className}`}
+            {...props}
+          />
+          {hint && <p className="mt-1 text-[11px] text-slate-500">{hint}</p>}
+        </div>
+      );
+    }
+
+    function Spinner({ className = 'w-4 h-4' }) {
+      return (
+        <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+          <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
+        </svg>
+      );
+    }
+
+    function Modal({ isOpen, onClose, children, size = 'md' }) {
+      useEffect(() => {
+        if (!isOpen) return;
+        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', onKey);
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+          document.removeEventListener('keydown', onKey);
+          document.body.style.overflow = prev;
+        };
+      }, [isOpen, onClose]);
+
+      if (!isOpen) return null;
+      const sizes = { md: 'max-w-lg', lg: 'max-w-3xl', xl: 'max-w-6xl' };
+
+      return (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm anim-fade"
+          onClick={onClose}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className={`w-full ${sizes[size]} max-h-full overflow-y-auto scroll-thin
+              bg-[#111118] border border-white/10 rounded-2xl shadow-2xl anim-pop`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🔔 Toast
+    // ========================================
+    const ToastContext = createContext(() => {});
+    const useToast = () => useContext(ToastContext);
+
+    function ToastProvider({ children }) {
+      const [toasts, setToasts] = useState([]);
+
+      const showToast = useCallback((message, tone = 'default') => {
+        const id = Date.now() + Math.random();
+        setToasts((prev) => [...prev, { id, message, tone }]);
+        setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 2600);
+      }, []);
+
+      return (
+        <ToastContext.Provider value={showToast}>
+          {children}
+          <div className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-2 pointer-events-none">
+            {toasts.map((t) => (
+              <div
+                key={t.id}
+                className={`anim-rise px-4 py-2.5 rounded-xl text-sm font-medium shadow-xl border backdrop-blur
+                  ${t.tone === 'error'
+                    ? 'bg-rose-950/90 border-rose-500/40 text-rose-100'
+                    : 'bg-[#191922]/95 border-white/15 text-slate-100'}`}
+              >
+                {t.message}
+              </div>
+            ))}
+          </div>
+        </ToastContext.Provider>
+      );
+    }
+
+    // ========================================
+    // 🔀 Router (해시 기반)
+    // ========================================
+    const RouterContext = createContext({ path: '/', navigate: () => {} });
+    const useRouter = () => useContext(RouterContext);
+
+    function Router({ children }) {
+      const [path, setPath] = useState(() => window.location.hash.slice(1) || '/');
+
+      useEffect(() => {
+        const onHashChange = () => setPath(window.location.hash.slice(1) || '/');
+        window.addEventListener('hashchange', onHashChange);
+        return () => window.removeEventListener('hashchange', onHashChange);
+      }, []);
+
+      const navigate = useCallback((to) => {
+        window.location.hash = to;
+        window.scrollTo({ top: 0 });
+      }, []);
+
+      return <RouterContext.Provider value={{ path, navigate }}>{children}</RouterContext.Provider>;
+    }
+
+    function Routes({ children }) {
+      const { path } = useRouter();
+      const routes = React.Children.toArray(children);
+      const matched = routes.find((r) => r.props.path === path) || routes[0];
+      return matched ? matched.props.element : null;
+    }
+
+    function Route() { return null; }
+
+    function Link({ to, className = '', children, ...props }) {
+      const { navigate } = useRouter();
+      return (
+        <a
+          href={`#${to}`}
+          className={className}
+          onClick={(e) => { e.preventDefault(); navigate(to); }}
+          {...props}
+        >
+          {children}
+        </a>
+      );
+    }
+
+    // ========================================
+    // 🧠 Studio Context — 작업 목록 / 생성 / 저장
+    // ========================================
+    const StudioContext = createContext(null);
+    const useStudio = () => useContext(StudioContext);
+
+    function loadSaved() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { jobs: [], liked: [] };
+        const parsed = JSON.parse(raw);
+        return {
+          // 새로고침 전에 생성 중이던 작업은 되살릴 수 없으니 실패로 표시한다
+          jobs: (parsed.jobs || []).map((j) =>
+            j.status === 'running' ? { ...j, status: 'error', error: '페이지를 새로 고치면서 중단됐어요.' } : j
+          ),
+          liked: parsed.liked || [],
+        };
+      } catch (e) {
+        return { jobs: [], liked: [] };
+      }
+    }
+
+    function StudioProvider({ children }) {
+      const saved = useMemo(loadSaved, []);
+      const [jobs, setJobs] = useState(saved.jobs);
+      const [liked, setLiked] = useState(saved.liked);
+      const [config, setConfig] = useState({ loading: true, hasKey: false, models: [] });
+      const [mode, setMode] = useState('demo');       // 'real' | 'demo'
+      const [draft, setDraft] = useState(null);        // 둘러보기에서 가져온 프롬프트
+      const [selected, setSelected] = useState(null);  // 확대해서 볼 이미지 { jobId, imageId }
+      const showToast = useToast();
+
+      // 서버에 키가 있는지 확인하고, 있으면 바로 실제 생성 모드로 시작한다
+      useEffect(() => {
+        let alive = true;
+        fetch(`${API_BASE_URL}/config`)
+          .then((res) => res.json())
+          .then((body) => {
+            if (!alive) return;
+            const data = body.data || {};
+            setConfig({ loading: false, hasKey: Boolean(data.hasKey), models: data.models || [] });
+            if (data.hasKey) setMode('real');
+          })
+          .catch(() => {
+            if (!alive) return;
+            setConfig({ loading: false, hasKey: false, models: [] });
+          });
+        return () => { alive = false; };
+      }, []);
+
+      const hasRunning = jobs.some((j) => j.status === 'running');
+
+      // 진행률 애니메이션. 데모는 끝까지 차오르고, 실제 호출은 응답이 올 때까지 92% 앞에서 기다린다.
+      useEffect(() => {
+        if (!hasRunning) return;
+        const timer = setInterval(() => {
+          setJobs((prev) => prev.map((job) => {
+            if (job.status !== 'running') return job;
+            if (job.mode === 'demo') {
+              const next = job.progress + 2 + Math.random() * 5;
+              return next >= 100 ? { ...job, progress: 100, status: 'done' } : { ...job, progress: next };
+            }
+            const next = job.progress + Math.max(0.5, (92 - job.progress) * 0.05);
+            return { ...job, progress: Math.min(next, 92) };
+          }));
+        }, 110);
+        return () => clearInterval(timer);
+      }, [hasRunning]);
+
+      // 생성이 끝난 뒤에만 저장한다 (진행률까지 매 프레임 저장하지 않도록)
+      useEffect(() => {
+        if (hasRunning) return;
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ jobs: jobs.slice(0, 24), liked }));
+        } catch (e) { /* 저장 공간이 없으면 조용히 넘어간다 */ }
+      }, [jobs, liked, hasRunning]);
+
+      const patchJob = useCallback((id, patch) => {
+        setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
+      }, []);
+
+      // 실제 생성 — 서버가 fal.ai 를 대신 호출한다
+      const runReal = useCallback(async (job) => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: job.prompt,
+              styleKey: job.styleKey,
+              aspect: job.aspect,
+              count: job.count,
+              model: job.model,
+              stylize: job.stylize,
+              seed: job.seedInput,
+            }),
+          });
+          // 서버 응답은 { success, data, message } 형태로 통일돼 있다
+          const body = await res.json();
+          if (!res.ok || !body.success) throw new Error(body.message || '이미지를 만들지 못했어요.');
+          const data = body.data;
+
+          patchJob(job.id, {
+            status: 'done',
+            progress: 100,
+            images: job.images.slice(0, data.images.length).map((img, i) => ({
+              ...img,
+              url: data.images[i].url,
+              width: data.images[i].width,
+              height: data.images[i].height,
+            })),
+            seed: data.seed,
+            finalPrompt: data.finalPrompt,
+            translatedFrom: data.translatedFrom,
+            modelLabel: data.modelLabel,
+            elapsedMs: data.elapsedMs,
+          });
+        } catch (err) {
+          patchJob(job.id, { status: 'error', progress: 0, error: err.message });
+          showToast(err.message, 'error');
+        }
+      }, [patchJob, showToast]);
+
+      // 새 생성 작업 만들기
+      const generate = useCallback((settings) => {
+        const prompt = String(settings.prompt || '').trim();
+        if (!prompt) return null;
+
+        const useReal = mode === 'real' && config.hasKey;
+        const salt = settings.seedInput || Math.floor(Math.random() * 1e9);
+        const id = 'j' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        const count = clamp(Number(settings.count) || 4, 1, 4);
+
+        const job = {
+          id,
+          prompt,
+          styleKey: settings.styleKey,
+          aspect: settings.aspect,
+          model: settings.model,
+          count,
+          stylize: settings.stylize,
+          seedInput: settings.seedInput || null,
+          mode: useReal ? 'real' : 'demo',
+          status: 'running',
+          progress: 0,
+          error: null,
+          createdAt: Date.now(),
+          // 실제 이미지가 오기 전까지는 이 시드로 그린 데모 아트를 흐리게 깔아둔다
+          images: Array.from({ length: count }, (_, i) => ({
+            id: `${id}_${i}`,
+            index: i,
+            seed: hashString(`${prompt}|${settings.styleKey}|${salt}|${i}`),
+          })),
+        };
+
+        setJobs((prev) => [job, ...prev]);
+        if (useReal) runReal(job);
+        return job;
+      }, [mode, config.hasKey, runReal]);
+
+      const retry = useCallback((job) => {
+        const reset = { status: 'running', progress: 0, error: null };
+        patchJob(job.id, reset);
+        if (job.mode === 'real') runReal({ ...job, ...reset });
+      }, [patchJob, runReal]);
+
+      const removeJob = useCallback((id) => {
+        setJobs((prev) => prev.filter((j) => j.id !== id));
+        setSelected((cur) => (cur && cur.jobId === id ? null : cur));
+      }, []);
+
+      const toggleLike = useCallback((imageId) => {
+        setLiked((prev) => (prev.includes(imageId) ? prev.filter((x) => x !== imageId) : [imageId, ...prev]));
+      }, []);
+
+      const value = {
+        jobs, liked, config, mode, setMode, draft, setDraft, selected, setSelected,
+        generate, retry, removeJob, toggleLike, showToast,
+      };
+
+      return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>;
+    }
+
+    // ========================================
+    // 🧩 공통 컴포넌트
+    // ========================================
+
+    // 실제 이미지가 있으면 그것을, 없으면 데모 아트를 보여준다
+    function ImageFrame({ image, styleKey, aspectCls, blur = 0, rounded = 'rounded-lg', className = '' }) {
+      const [failed, setFailed] = useState(false);
+      const [loaded, setLoaded] = useState(false);
+      const showReal = Boolean(image.url) && !failed;
+
+      return (
+        <div className={`relative overflow-hidden bg-white/[.06] ${aspectCls} ${rounded} ${className}`}>
+          {showReal ? (
+            <img
+              src={image.url}
+              alt=""
+              loading="lazy"
+              onLoad={() => setLoaded(true)}
+              onError={() => setFailed(true)}
+              className={`w-full h-full object-cover transition duration-500 ${loaded ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
+            />
+          ) : (
+            <ArtImage seed={image.seed} styleKey={styleKey} blur={blur} />
+          )}
+          {failed && (
+            <div className="absolute inset-0 grid place-items-center bg-black/50 text-[11px] text-slate-300 px-2 text-center">
+              이미지 주소가 만료돼 데모 아트로 대신 보여줘요
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const NAV_ITEMS = [
+      { to: '/', label: '생성', icon: '✨' },
+      { to: '/gallery', label: '내 갤러리', icon: '🖼️' },
+      { to: '/explore', label: '둘러보기', icon: '🧭' },
+    ];
+
+    function Logo({ compact = false }) {
+      return (
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-amber-400 grid place-items-center text-lg shadow-lg shadow-violet-900/40">
+            ✦
+          </div>
+          {!compact && (
+            <div className="leading-tight">
+              <div className="font-bold text-slate-50">상상공작소</div>
+              <div className="text-[11px] text-slate-500">AI 이미지 스튜디오</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function ModeBadge() {
+      const { mode, config } = useStudio();
+      if (config.loading) return <Badge>연결 확인 중…</Badge>;
+      return mode === 'real'
+        ? <Badge tone="emerald">● fal.ai 실제 생성</Badge>
+        : <Badge tone="amber">● 데모 모드</Badge>;
+    }
+
+    function Sidebar() {
+      const { path } = useRouter();
+      const { jobs, config } = useStudio();
+      const doneCount = jobs.filter((j) => j.status === 'done').reduce((sum, j) => sum + j.images.length, 0);
+
+      return (
+        <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-white/10 bg-[#0d0d14] p-4 h-screen sticky top-0">
+          <div className="px-1 py-2"><Logo /></div>
+
+          <nav className="mt-6 flex flex-col gap-1">
+            {NAV_ITEMS.map((item) => {
+              const active = path === item.to;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition
+                    ${active ? 'bg-violet-500/20 text-violet-100' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}
+                >
+                  <span className="text-base">{item.icon}</span>
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="mt-auto space-y-3">
+            <Card className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] text-slate-500">지금 상태</span>
+                <ModeBadge />
+              </div>
+              <p className="text-[11px] leading-relaxed text-slate-500">
+                {config.hasKey
+                  ? 'fal.ai 키가 서버에 있어요. 한국어로 써도 영어로 옮겨서 보내줍니다.'
+                  : '.env 에 FAL_KEY 를 넣으면 진짜 이미지가 생성돼요. 지금은 프롬프트를 시드로 그린 데모 아트를 보여줍니다.'}
+              </p>
+            </Card>
+            <div className="px-1 text-[11px] text-slate-600">
+              만든 이미지 <span className="text-slate-400 font-semibold">{doneCount}</span>장
+            </div>
+          </div>
+        </aside>
+      );
+    }
+
+    function MobileHeader() {
+      return (
+        <header className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-14 border-b border-white/10 bg-[#0d0d14]/95 backdrop-blur">
+          <Logo compact />
+          <span className="font-bold text-sm text-slate-100">상상공작소</span>
+          <ModeBadge />
+        </header>
+      );
+    }
+
+    function MobileNav() {
+      const { path } = useRouter();
+      return (
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 flex border-t border-white/10 bg-[#0d0d14]/95 backdrop-blur">
+          {NAV_ITEMS.map((item) => {
+            const active = path === item.to;
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition
+                  ${active ? 'text-violet-300' : 'text-slate-500'}`}
+              >
+                <span className="text-lg">{item.icon}</span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+      );
+    }
+
+    function PageHeader({ title, description, right }) {
+      return (
+        <div className="flex items-start justify-between gap-4 mb-5">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-50">{title}</h1>
+            {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+          </div>
+          {right}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 생성 페이지 — 프롬프트 입력창
+    // ========================================
+    function PromptBar({ settings, setSettings, onSubmit }) {
+      const { mode, setMode, config, draft, setDraft } = useStudio();
+      const [showOptions, setShowOptions] = useState(false);
+      const textareaRef = useRef(null);
+
+      const update = (patch) => setSettings((prev) => ({ ...prev, ...patch }));
+
+      // 둘러보기에서 프롬프트를 가져오면 입력창에 채우고 포커스를 준다
+      useEffect(() => {
+        if (!draft) return;
+        setSettings((prev) => ({ ...prev, prompt: draft.prompt, styleKey: draft.styleKey, aspect: draft.aspect }));
+        setDraft(null);
+        if (textareaRef.current) textareaRef.current.focus();
+      }, [draft, setDraft, setSettings]);
+
+      // 입력 길이에 따라 높이를 늘린다
+      useEffect(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+      }, [settings.prompt]);
+
+      const handleKeyDown = (e) => {
+        if (e.key !== 'Enter' || e.shiftKey) return;
+        // 한글 조합 중(IME)에 눌린 Enter 는 글자를 확정하는 키라 무시해야 한다
+        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+        e.preventDefault();
+        onSubmit();
+      };
+
+      const modelOptions = config.models.length
+        ? config.models.map((m) => ({ value: m.value, label: m.label }))
+        : [{ value: 'schnell', label: '플럭스 슈넬' }];
+      const currentModel = config.models.find((m) => m.value === settings.model);
+      const supportsStylize = currentModel ? currentModel.guidance : false;
+
+      return (
+        <Card className="p-3 sm:p-4 backdrop-blur bg-white/[.06]">
+          <div className="flex gap-3">
+            <div className="hidden sm:grid w-9 h-9 shrink-0 rounded-xl bg-violet-500/20 text-violet-200 place-items-center text-sm font-bold">
+              /
+            </div>
+            <textarea
+              ref={textareaRef}
+              rows={2}
+              value={settings.prompt}
+              onChange={(e) => update({ prompt: e.target.value })}
+              onKeyDown={handleKeyDown}
+              placeholder="만들고 싶은 장면을 한국어로 적어보세요 — 예: 노을 지는 바닷가에 앉아 기타 치는 소년"
+              className="flex-1 bg-transparent resize-none text-[15px] leading-relaxed text-slate-100
+                placeholder:text-slate-600 focus:outline-none scroll-thin"
+              aria-label="프롬프트"
+            />
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap items-center gap-2">
+            <ChipGroup
+              options={STYLE_OPTIONS}
+              value={settings.styleKey}
+              onChange={(v) => update({ styleKey: v })}
+            />
+            <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
+            <ChipGroup
+              options={ASPECTS.map((a) => ({ value: a.value, label: a.label }))}
+              value={settings.aspect}
+              onChange={(v) => update({ aspect: v })}
+            />
+
+            <div className="flex-1" />
+
+            <Button variant="ghost" size="sm" onClick={() => setShowOptions((v) => !v)}>
+              옵션 {showOptions ? '▴' : '▾'}
+            </Button>
+            <Button size="md" onClick={onSubmit} disabled={!settings.prompt.trim()}>
+              ✦ 생성하기
+            </Button>
+          </div>
+
+          {showOptions && (
+            <div className="mt-3 pt-3 border-t border-white/10 grid gap-4 sm:grid-cols-2 anim-fade">
+              <div>
+                <span className="block text-xs font-medium text-slate-400 mb-1.5">모델</span>
+                <ChipGroup options={modelOptions} value={settings.model} onChange={(v) => update({ model: v })} />
+                {currentModel && <p className="mt-1.5 text-[11px] text-slate-500">{currentModel.hint}</p>}
+              </div>
+
+              <div>
+                <span className="block text-xs font-medium text-slate-400 mb-1.5">한 번에 만들 장수</span>
+                <ChipGroup options={COUNT_OPTIONS} value={settings.count} onChange={(v) => update({ count: v })} />
+              </div>
+
+              <Slider
+                label="스타일화 강도"
+                value={settings.stylize}
+                min={0} max={1000} step={50}
+                onChange={(v) => update({ stylize: v })}
+                disabled={!supportsStylize}
+                hint={supportsStylize
+                  ? '높일수록 프롬프트를 더 강하게 따릅니다 (guidance_scale)'
+                  : '슈넬 모델은 이 값을 쓰지 않아요. 디브이 모델에서 조절해보세요.'}
+              />
+
+              <Input
+                label="시드 고정 (선택)"
+                value={settings.seedInput}
+                onChange={(e) => update({ seedInput: e.target.value.replace(/[^0-9]/g, '') })}
+                placeholder="비워두면 매번 다른 그림"
+                hint="같은 시드 + 같은 프롬프트 = 같은 그림"
+                inputMode="numeric"
+              />
+
+              <div className="sm:col-span-2 flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-xs font-medium text-slate-400">생성 방식</span>
+                <ChipGroup
+                  options={[
+                    { value: 'real', label: '✨ 실제 생성 (fal.ai)' },
+                    { value: 'demo', label: '🎨 데모 모드 (무료)' },
+                  ]}
+                  value={config.hasKey ? mode : 'demo'}
+                  onChange={(v) => {
+                    if (v === 'real' && !config.hasKey) return;
+                    setMode(v);
+                  }}
+                />
+                {!config.hasKey && !config.loading && (
+                  <span className="text-[11px] text-amber-300/80">서버에 FAL_KEY 가 없어 데모 모드만 쓸 수 있어요</span>
+                )}
+              </div>
+            </div>
+          )}
+        </Card>
+      );
+    }
+
+    // 생성 중 진행률 표시
+    function ProgressOverlay({ progress, mode }) {
+      return (
+        <div className="absolute inset-0 z-10 pointer-events-none">
+          <div className="absolute inset-0 bg-black/20" />
+          <div className="absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-white/15 to-transparent anim-sweep" />
+          <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/70 to-transparent">
+            <div className="flex items-center gap-2 mb-1.5 text-[11px] text-slate-200">
+              <Spinner className="w-3 h-3" />
+              <span>{mode === 'real' ? 'fal.ai 가 그리는 중' : '데모 아트 그리는 중'}</span>
+              <span className="ml-auto font-mono">{Math.round(progress)}%</span>
+            </div>
+            <div className="h-1 rounded-full bg-white/15 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-violet-400 to-fuchsia-400 transition-[width] duration-150"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 생성 작업 한 건 = 카드 하나
+    function JobCard({ job }) {
+      const { setSelected, retry, removeJob, generate, showToast } = useStudio();
+      const [showPrompt, setShowPrompt] = useState(false);
+      const aspect = aspectOf(job.aspect);
+      const style = STYLE_PRESETS[job.styleKey] || STYLE_PRESETS.photo;
+      const running = job.status === 'running';
+
+      const copyPrompt = async () => {
+        try {
+          await navigator.clipboard.writeText(job.prompt);
+          showToast('프롬프트를 복사했어요');
+        } catch (e) {
+          showToast('복사에 실패했어요', 'error');
+        }
+      };
+
+      // 같은 설정으로 한 번 더 (시드는 새로 뽑는다)
+      const makeVariation = () => {
+        generate({ ...job, seedInput: '' });
+        showToast('변형을 만드는 중이에요');
+      };
+
+      return (
+        <Card className="p-3 sm:p-4 anim-rise">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-slate-200 leading-relaxed break-words">{job.prompt}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <Badge tone="violet">{style.emoji} {style.label}</Badge>
+                <Badge>{job.aspect}</Badge>
+                <Badge>{job.mode === 'real' ? (job.modelLabel || '실제 생성') : '데모 아트'}</Badge>
+                {job.seed !== undefined && job.seed !== null && <Badge>시드 {job.seed}</Badge>}
+                {typeof job.elapsedMs === 'number' && <Badge>{(job.elapsedMs / 1000).toFixed(1)}초</Badge>}
+                <span className="text-[11px] text-slate-600">{timeAgo(job.createdAt)}</span>
+              </div>
+            </div>
+            <IconButton label="이 작업 지우기" onClick={() => removeJob(job.id)}>✕</IconButton>
+          </div>
+
+          {/* 한국어 → 영어 번역 결과를 그대로 보여준다 */}
+          {job.translatedFrom && (
+            <div className="mb-3">
+              <button
+                onClick={() => setShowPrompt((v) => !v)}
+                className="text-[11px] text-violet-300/90 hover:text-violet-200 transition"
+              >
+                🌐 영어로 옮겨서 보냈어요 {showPrompt ? '▴' : '▾'}
+              </button>
+              {showPrompt && (
+                <p className="mt-1.5 p-2.5 rounded-lg bg-black/30 border border-white/10 text-[11px] leading-relaxed text-slate-400 break-words anim-fade">
+                  {job.finalPrompt}
+                </p>
+              )}
+            </div>
+          )}
+
+          {job.status === 'error' ? (
+            <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-500/30">
+              <p className="text-sm text-rose-200">{job.error}</p>
+              <Button variant="secondary" size="sm" className="mt-3" onClick={() => retry(job)}>
+                다시 시도
+              </Button>
+            </div>
+          ) : (
+            <div className="relative max-w-[620px]">
+              <div className={`grid gap-1 ${job.count === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                {job.images.map((image, i) => {
+                  // 진행률에 따라 흐림이 걷히도록 (칸마다 살짝 시차를 둔다)
+                  const revealed = clamp((job.progress - i * 5) / 92, 0, 1);
+                  const blur = running ? (1 - revealed) * 16 : 0;
+                  return (
+                    <button
+                      key={image.id}
+                      onClick={() => !running && setSelected({ jobId: job.id, imageId: image.id })}
+                      disabled={running}
+                      className="group relative block focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 rounded-lg"
+                      aria-label={`${i + 1}번 이미지 확대`}
+                    >
+                      <ImageFrame image={image} styleKey={job.styleKey} aspectCls={aspect.cls} blur={blur} />
+                      {!running && (
+                        <span className="absolute inset-0 rounded-lg bg-black/0 group-hover:bg-black/25 transition grid place-items-center">
+                          <span className="opacity-0 group-hover:opacity-100 transition text-xs font-semibold text-white bg-black/60 px-2.5 py-1 rounded-lg">
+                            크게 보기
+                          </span>
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {running && <ProgressOverlay progress={job.progress} mode={job.mode} />}
+            </div>
+          )}
+
+          {job.status === 'done' && (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              {job.images.map((image, i) => (
+                <Button
+                  key={image.id}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setSelected({ jobId: job.id, imageId: image.id })}
+                >
+                  U{i + 1}
+                </Button>
+              ))}
+              <div className="w-px h-5 bg-white/10 mx-1" />
+              <Button variant="secondary" size="sm" onClick={makeVariation}>🔄 변형 만들기</Button>
+              <Button variant="ghost" size="sm" onClick={copyPrompt}>프롬프트 복사</Button>
+            </div>
+          )}
+        </Card>
+      );
+    }
+
+    function CreatePage() {
+      const { jobs, generate, config, mode, showToast } = useStudio();
+      const [settings, setSettings] = useState({
+        prompt: '',
+        styleKey: 'photo',
+        aspect: '1:1',
+        model: 'schnell',
+        count: 4,
+        stylize: 250,
+        seedInput: '',
+      });
+
+      const handleSubmit = () => {
+        const job = generate(settings);
+        if (!job) return;
+        showToast(job.mode === 'real' ? 'fal.ai 에 요청을 보냈어요' : '데모 아트를 그리고 있어요');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      const examples = EXPLORE_FEED.slice(0, 3);
+
+      return (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
+          <PageHeader
+            title="무엇을 그려볼까요?"
+            description="한국어로 적어도 괜찮아요. 서버가 영어로 옮겨서 보내줍니다."
+            right={<div className="hidden sm:block"><ModeBadge /></div>}
+          />
+
+          {!config.loading && !config.hasKey && (
+            <div className="mb-4 p-3.5 rounded-xl bg-amber-500/10 border border-amber-400/25 text-[13px] text-amber-100/90 leading-relaxed">
+              <strong className="font-semibold">데모 모드로 동작 중이에요.</strong>{' '}
+              폴더에 <code className="px-1 py-0.5 rounded bg-black/30 font-mono text-[11px]">.env</code> 파일을 만들고
+              <code className="px-1 py-0.5 rounded bg-black/30 font-mono text-[11px]">FAL_KEY=발급받은_키</code> 를 넣은 뒤
+              <code className="px-1 py-0.5 rounded bg-black/30 font-mono text-[11px]">node server.js</code> 로 다시 켜면 진짜 이미지가 생성됩니다.
+            </div>
+          )}
+
+          <PromptBar settings={settings} setSettings={setSettings} onSubmit={handleSubmit} />
+
+          {jobs.length === 0 ? (
+            <div className="mt-10 text-center">
+              <div className="text-5xl mb-4">🪄</div>
+              <p className="text-slate-400 mb-1">아직 만든 이미지가 없어요.</p>
+              <p className="text-sm text-slate-600 mb-6">아래 예시를 눌러 바로 시작해보세요.</p>
+              <div className="grid gap-2 sm:grid-cols-3 text-left">
+                {examples.map((ex) => (
+                  <button
+                    key={ex.id}
+                    onClick={() => setSettings((prev) => ({ ...prev, prompt: ex.prompt, styleKey: ex.styleKey, aspect: ex.aspect }))}
+                    className="p-3 rounded-xl bg-white/[.04] border border-white/10 hover:border-violet-400/40 hover:bg-white/[.07] transition text-left"
+                  >
+                    <span className="text-[11px] text-slate-500">{STYLE_PRESETS[ex.styleKey].emoji} {STYLE_PRESETS[ex.styleKey].label}</span>
+                    <p className="mt-1 text-[13px] text-slate-300 leading-relaxed">{ex.prompt}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5 space-y-4">
+              {jobs.map((job) => <JobCard key={job.id} job={job} />)}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 갤러리 페이지
+    // ========================================
+    function GalleryPage() {
+      const { jobs, liked, setSelected } = useStudio();
+      const [filter, setFilter] = useState('all');
+
+      // 완료된 작업의 이미지를 한 줄로 펼친다
+      const allImages = useMemo(() => {
+        const list = [];
+        jobs.forEach((job) => {
+          if (job.status !== 'done') return;
+          job.images.forEach((image) => list.push({ image, job }));
+        });
+        return list;
+      }, [jobs]);
+
+      const visible = filter === 'liked'
+        ? allImages.filter(({ image }) => liked.includes(image.id))
+        : allImages;
+
+      return (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
+          <PageHeader
+            title="내 갤러리"
+            description={`지금까지 만든 이미지 ${allImages.length}장`}
+            right={
+              <ChipGroup
+                options={[{ value: 'all', label: '전체' }, { value: 'liked', label: `♥ 좋아요 ${liked.length}` }]}
+                value={filter}
+                onChange={setFilter}
+              />
+            }
+          />
+
+          {visible.length === 0 ? (
+            <div className="mt-16 text-center">
+              <div className="text-5xl mb-4">{filter === 'liked' ? '🤍' : '🖼️'}</div>
+              <p className="text-slate-400 mb-5">
+                {filter === 'liked' ? '아직 하트를 누른 이미지가 없어요.' : '아직 만든 이미지가 없어요.'}
+              </p>
+              <Link to="/" className="inline-block">
+                <Button>✦ 이미지 만들러 가기</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              {visible.map(({ image, job }) => (
+                <button
+                  key={image.id}
+                  onClick={() => setSelected({ jobId: job.id, imageId: image.id })}
+                  className="group relative text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 rounded-xl anim-fade"
+                >
+                  <ImageFrame image={image} styleKey={job.styleKey} aspectCls={aspectOf(job.aspect).cls} rounded="rounded-xl" />
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-black/85 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition flex items-end p-2.5">
+                    <p className="text-[11px] text-slate-100 line-clamp-3 leading-relaxed">{job.prompt}</p>
+                  </div>
+                  {liked.includes(image.id) && (
+                    <span className="absolute top-2 right-2 text-rose-400 text-sm drop-shadow">♥</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 둘러보기 페이지
+    // ========================================
+    function ExplorePage() {
+      const { setDraft, showToast } = useStudio();
+      const { navigate } = useRouter();
+
+      const usePrompt = (item) => {
+        setDraft({ prompt: item.prompt, styleKey: item.styleKey, aspect: item.aspect });
+        navigate('/');
+        showToast('프롬프트를 가져왔어요');
+      };
+
+      return (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
+          <PageHeader
+            title="둘러보기"
+            description="다른 사람들의 프롬프트를 가져와서 내 스타일로 바꿔보세요."
+          />
+          <p className="-mt-2 mb-5 text-[11px] text-slate-600">
+            ※ 썸네일은 비용이 들지 않도록 프롬프트를 시드로 그린 데모 아트예요. 가져와서 직접 생성하면 진짜 이미지가 나옵니다.
+          </p>
+
+          {/* 비율이 제각각이라 격자 대신 컬럼(메이슨리)으로 쌓는다 */}
+          <div className="columns-2 lg:columns-3 gap-3">
+            {EXPLORE_FEED.map((item) => (
+              <Card key={item.id} className="overflow-hidden group anim-fade mb-3 break-inside-avoid">
+                <div className="relative">
+                  <ImageFrame
+                    image={{ id: item.id, seed: hashString(item.prompt) }}
+                    styleKey={item.styleKey}
+                    aspectCls={aspectOf(item.aspect).cls}
+                    rounded="rounded-none"
+                  />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition grid place-items-center p-3">
+                    <Button size="sm" onClick={() => usePrompt(item)}>이 프롬프트로 생성</Button>
+                  </div>
+                </div>
+                <div className="p-3">
+                  <p className="text-[13px] text-slate-300 leading-relaxed line-clamp-2">{item.prompt}</p>
+                  <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>{item.author}</span>
+                    <span>♥ {formatCount(item.likes)}</span>
+                  </div>
+                  <Button variant="secondary" size="sm" className="mt-2.5 w-full sm:hidden" onClick={() => usePrompt(item)}>
+                    이 프롬프트로 생성
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🔍 확대 보기 (라이트박스)
+    // ========================================
+    function Lightbox() {
+      const { selected, setSelected, jobs, liked, toggleLike, generate, showToast } = useStudio();
+
+      const found = useMemo(() => {
+        if (!selected) return null;
+        const job = jobs.find((j) => j.id === selected.jobId);
+        if (!job) return null;
+        const image = job.images.find((im) => im.id === selected.imageId);
+        return image ? { job, image } : null;
+      }, [selected, jobs]);
+
+      if (!found) return null;
+      const { job, image } = found;
+      const style = STYLE_PRESETS[job.styleKey] || STYLE_PRESETS.photo;
+      const aspect = aspectOf(job.aspect);
+      const isLiked = liked.includes(image.id);
+      const close = () => setSelected(null);
+
+      const copy = async (text, message) => {
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast(message);
+        } catch (e) {
+          showToast('복사에 실패했어요', 'error');
+        }
+      };
+
+      // 실제 이미지는 내려받고, 데모 아트는 SVG 로 만들어 저장한다
+      const download = async () => {
+        const name = `imagination-${image.id}`;
+        try {
+          if (image.url) {
+            const res = await fetch(image.url);
+            const blob = await res.blob();
+            const href = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = href;
+            a.download = `${name}.jpg`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(href), 1000);
+          } else {
+            const aspect = aspectOf(job.aspect);
+            const svg = buildArtSvg({
+              seed: image.seed, styleKey: job.styleKey, uid: 'dl',
+              width: aspect.w, height: aspect.h,
+            });
+            const href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+            const a = document.createElement('a');
+            a.href = href;
+            a.download = `${name}.svg`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(href), 1000);
+          }
+          showToast('이미지를 저장했어요');
+        } catch (e) {
+          if (image.url) window.open(image.url, '_blank', 'noopener');
+          else showToast('저장에 실패했어요', 'error');
+        }
+      };
+
+      return (
+        <Modal isOpen onClose={close} size="xl">
+          <div className="grid lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="bg-black/40 p-3 sm:p-5 grid place-items-center">
+              <div className="lightbox-media" style={{ '--ar': aspect.w / aspect.h }}>
+                <ImageFrame image={image} styleKey={job.styleKey} aspectCls={aspect.cls} rounded="rounded-xl" />
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-5 border-t lg:border-t-0 lg:border-l border-white/10 flex flex-col">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <h2 className="text-base font-bold text-slate-50">이미지 정보</h2>
+                <IconButton label="닫기" onClick={close}>✕</IconButton>
+              </div>
+
+              <p className="text-sm text-slate-200 leading-relaxed break-words">{job.prompt}</p>
+
+              {job.translatedFrom && (
+                <p className="mt-2.5 p-2.5 rounded-lg bg-black/30 border border-white/10 text-[11px] leading-relaxed text-slate-400 break-words">
+                  <span className="text-violet-300/90">영어 프롬프트 · </span>{job.finalPrompt}
+                </p>
+              )}
+
+              <dl className="mt-4 space-y-2 text-[13px]">
+                {[
+                  ['스타일', `${style.emoji} ${style.label}`],
+                  ['비율', job.aspect],
+                  ['생성 방식', job.mode === 'real' ? (job.modelLabel || 'fal.ai') : '데모 아트'],
+                  ['시드', job.mode === 'real' ? (job.seed === null || job.seed === undefined ? '-' : String(job.seed)) : String(image.seed)],
+                  ['만든 시각', timeAgo(job.createdAt)],
+                ].map(([key, val]) => (
+                  <div key={key} className="flex items-center justify-between gap-3">
+                    <dt className="text-slate-500">{key}</dt>
+                    <dd className="text-slate-200 font-medium text-right break-all">{val}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              <div className="mt-auto pt-5 grid grid-cols-2 gap-2">
+                <Button
+                  variant={isLiked ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => toggleLike(image.id)}
+                >
+                  {isLiked ? '♥ 저장됨' : '♡ 좋아요'}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={download}>⬇ 저장하기</Button>
+                <Button variant="secondary" size="sm" onClick={() => copy(job.prompt, '프롬프트를 복사했어요')}>
+                  프롬프트 복사
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    generate({ ...job, seedInput: '' });
+                    close();
+                    showToast('변형을 만드는 중이에요');
+                  }}
+                >
+                  🔄 변형 만들기
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      );
+    }
+
+    // ========================================
+    // 🚀 App
+    // ========================================
+    function App() {
+      return (
+        <ToastProvider>
+          <StudioProvider>
+            <Router>
+              <div className="min-h-screen flex">
+                <Sidebar />
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <MobileHeader />
+                  <main className="flex-1 min-w-0 pb-20 md:pb-0">
+                    <Routes>
+                      <Route path="/" element={<CreatePage />} />
+                      <Route path="/gallery" element={<GalleryPage />} />
+                      <Route path="/explore" element={<ExplorePage />} />
+                    </Routes>
+                  </main>
+                </div>
+                <MobileNav />
+              </div>
+              <Lightbox />
+            </Router>
+          </StudioProvider>
+        </ToastProvider>
+      );
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

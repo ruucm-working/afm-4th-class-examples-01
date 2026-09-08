@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>투두 01 — txt 파일에 저장되는 할 일 관리</title>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.9/babel.min.js"></script>
+  <style>
+    /* 새 항목이 추가될 때 살짝 떠오르는 효과 (Tailwind 기본 유틸에 없어서 직접 정의) */
+    @keyframes riseIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .rise-in { animation: riseIn 0.18s ease-out; }
+  </style>
+</head>
+<body class="bg-slate-100">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+    // ========================================
+    // ⚙️ 설정
+    // ========================================
+    const API_BASE_URL = '/api';
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+
+    function Button({ variant = 'primary', size = 'md', className = '', ...props }) {
+      const base = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-1';
+      const variants = {
+        primary: 'bg-slate-900 text-white hover:bg-slate-700 focus:ring-slate-400',
+        secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 focus:ring-slate-300',
+        danger: 'bg-white text-red-600 border border-red-200 hover:bg-red-50 focus:ring-red-300',
+        ghost: 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 focus:ring-slate-300',
+      };
+      const sizes = {
+        sm: 'text-sm px-2.5 py-1',
+        md: 'text-sm px-4 py-2',
+        lg: 'text-base px-5 py-2.5',
+      };
+      return <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props} />;
+    }
+
+    function Input({ label, error, inputRef, className = '', ...props }) {
+      return (
+        <div className={className}>
+          {label && <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>}
+          <input
+            ref={inputRef}
+            className={`w-full px-4 py-2.5 rounded-lg border bg-white text-slate-900 placeholder-slate-400
+              focus:outline-none focus:ring-2 focus:border-transparent
+              ${error ? 'border-red-400 focus:ring-red-300' : 'border-slate-300 focus:ring-slate-400'}`}
+            {...props}
+          />
+          {error && <p className="mt-1 text-sm text-red-600" role="alert">{error}</p>}
+        </div>
+      );
+    }
+
+    function Card({ className = '', children }) {
+      return (
+        <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function Badge({ tone = 'slate', children }) {
+      const tones = {
+        slate: 'bg-slate-100 text-slate-600',
+        green: 'bg-emerald-100 text-emerald-700',
+        blue: 'bg-blue-100 text-blue-700',
+      };
+      return (
+        <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${tones[tone]}`}>
+          {children}
+        </span>
+      );
+    }
+
+    // ========================================
+    // 🧩 Common Components
+    // ========================================
+
+    function Header({ total, doneCount }) {
+      return (
+        <header className="mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">할 일 목록</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            입력한 할 일은 서버의 <code className="px-1 py-0.5 bg-slate-200 rounded text-slate-700">todos.txt</code> 파일에 저장됩니다.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Badge tone="blue">전체 {total}</Badge>
+            <Badge tone="green">완료 {doneCount}</Badge>
+            <Badge>남음 {total - doneCount}</Badge>
+          </div>
+        </header>
+      );
+    }
+
+    function ErrorBanner({ message, onClose }) {
+      if (!message) return null;
+      return (
+        <div className="mb-4 flex items-start justify-between gap-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3" role="alert">
+          <p className="text-sm text-red-700">{message}</p>
+          <button onClick={onClose} aria-label="에러 메시지 닫기" className="text-red-400 hover:text-red-600">✕</button>
+        </div>
+      );
+    }
+
+    function TodoForm({ onSubmit, submitting }) {
+      const [text, setText] = useState('');
+      const [error, setError] = useState('');
+      const inputRef = useRef(null);
+
+      async function handleSubmit(e) {
+        e.preventDefault();
+        const value = text.trim();
+        if (!value) {
+          setError('할 일을 입력해 주세요.');
+          return;
+        }
+        setError('');
+        const ok = await onSubmit(value);
+        if (ok) {
+          setText('');
+          if (inputRef.current) inputRef.current.focus();
+        }
+      }
+
+      return (
+        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 mb-5">
+          <Input
+            inputRef={inputRef}
+            className="flex-1"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="오늘 해야 할 일은?"
+            maxLength={200}
+            error={error}
+            aria-label="할 일 입력"
+          />
+          <Button type="submit" size="lg" disabled={submitting} className="sm:w-28 shrink-0">
+            {submitting ? '저장 중…' : '추가'}
+          </Button>
+        </form>
+      );
+    }
+
+    function FilterTabs({ value, onChange, counts }) {
+      const tabs = [
+        { key: 'all', label: '전체' },
+        { key: 'active', label: '진행중' },
+        { key: 'done', label: '완료' },
+      ];
+      return (
+        <div className="flex gap-1 mb-3" role="tablist" aria-label="할 일 필터">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              role="tab"
+              aria-selected={value === tab.key}
+              onClick={() => onChange(tab.key)}
+              className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                value === tab.key
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {tab.label} <span className="opacity-70">{counts[tab.key]}</span>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    function TodoItem({ todo, onToggle, onDelete, busy }) {
+      return (
+        <li className="rise-in flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-b-0">
+          <input
+            type="checkbox"
+            checked={todo.done}
+            onChange={() => onToggle(todo)}
+            disabled={busy}
+            aria-label={`${todo.text} 완료 표시`}
+            className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-400 cursor-pointer"
+          />
+          <span className={`flex-1 break-words ${todo.done ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+            {todo.text}
+          </span>
+          <Button variant="danger" size="sm" onClick={() => onDelete(todo)} disabled={busy}>
+            삭제
+          </Button>
+        </li>
+      );
+    }
+
+    function TodoList({ todos, loading, filter, onToggle, onDelete, busyId }) {
+      if (loading) {
+        return <p className="px-4 py-10 text-center text-slate-400">불러오는 중…</p>;
+      }
+      if (todos.length === 0) {
+        const messages = {
+          all: '아직 할 일이 없습니다. 위에서 첫 할 일을 추가해 보세요.',
+          active: '진행중인 할 일이 없습니다. 🎉',
+          done: '완료한 할 일이 아직 없습니다.',
+        };
+        return <p className="px-4 py-10 text-center text-slate-400">{messages[filter]}</p>;
+      }
+      return (
+        <ul>
+          {todos.map(todo => (
+            <TodoItem
+              key={todo.id}
+              todo={todo}
+              onToggle={onToggle}
+              onDelete={onDelete}
+              busy={busyId === todo.id}
+            />
+          ))}
+        </ul>
+      );
+    }
+
+    // 서버에 저장된 txt 파일 원본을 그대로 보여 준다.
+    function FilePreview({ file, onRefresh, loading }) {
+      const [open, setOpen] = useState(false);
+
+      function handleToggle() {
+        const next = !open;
+        setOpen(next);
+        if (next) onRefresh();
+      }
+
+      const content = file && file.content && file.content.trim()
+        ? file.content
+        : '(파일이 비어 있습니다)';
+
+      return (
+        <Card className="mt-5 overflow-hidden">
+          <button
+            onClick={handleToggle}
+            aria-expanded={open}
+            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50"
+          >
+            <span className="text-sm font-medium text-slate-700">
+              📄 저장된 파일 보기 {file && file.fileName ? `(${file.fileName})` : ''}
+            </span>
+            <span className="text-slate-400">{open ? '▲' : '▼'}</span>
+          </button>
+
+          {open && (
+            <div className="px-4 pb-4">
+              <div className="flex justify-end mb-2">
+                <Button variant="secondary" size="sm" onClick={onRefresh} disabled={loading}>
+                  {loading ? '읽는 중…' : '새로고침'}
+                </Button>
+              </div>
+              <pre className="bg-slate-900 text-slate-100 text-xs rounded-lg p-4 overflow-x-auto whitespace-pre">{content}</pre>
+            </div>
+          )}
+        </Card>
+      );
+    }
+
+    // ========================================
+    // 📄 Page Component
+    // ========================================
+
+    function TodoPage() {
+      const [todos, setTodos] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [submitting, setSubmitting] = useState(false);
+      const [busyId, setBusyId] = useState(null);
+      const [error, setError] = useState('');
+      const [filter, setFilter] = useState('all');
+      const [file, setFile] = useState(null);
+      const [fileLoading, setFileLoading] = useState(false);
+
+      // 서버 응답을 공통으로 처리한다. 실패하면 메시지를 던진다.
+      const request = useCallback(async (endpoint, options) => {
+        const res = await fetch(`${API_BASE_URL}${endpoint}`, options);
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.success) {
+          throw new Error(json.message || '요청을 처리하지 못했습니다.');
+        }
+        return json.data;
+      }, []);
+
+      const loadTodos = useCallback(async () => {
+        try {
+          setLoading(true);
+          setTodos(await request('/todos'));
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      }, [request]);
+
+      const loadFile = useCallback(async () => {
+        try {
+          setFileLoading(true);
+          setFile(await request('/todos/file'));
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setFileLoading(false);
+        }
+      }, [request]);
+
+      useEffect(() => { loadTodos(); }, [loadTodos]);
+
+      async function handleAdd(text) {
+        try {
+          setSubmitting(true);
+          setError('');
+          const created = await request('/todos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text }),
+          });
+          setTodos(prev => [...prev, created]);
+          return true;
+        } catch (err) {
+          setError(err.message);
+          return false;
+        } finally {
+          setSubmitting(false);
+        }
+      }
+
+      async function handleToggle(todo) {
+        try {
+          setBusyId(todo.id);
+          setError('');
+          const updated = await request(`/todos/${todo.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ done: !todo.done }),
+          });
+          setTodos(prev => prev.map(t => (t.id === updated.id ? updated : t)));
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setBusyId(null);
+        }
+      }
+
+      async function handleDelete(todo) {
+        try {
+          setBusyId(todo.id);
+          setError('');
+          await request(`/todos/${todo.id}`, { method: 'DELETE' });
+          setTodos(prev => prev.filter(t => t.id !== todo.id));
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setBusyId(null);
+        }
+      }
+
+      const counts = useMemo(() => ({
+        all: todos.length,
+        active: todos.filter(t => !t.done).length,
+        done: todos.filter(t => t.done).length,
+      }), [todos]);
+
+      const visibleTodos = useMemo(() => {
+        if (filter === 'active') return todos.filter(t => !t.done);
+        if (filter === 'done') return todos.filter(t => t.done);
+        return todos;
+      }, [todos, filter]);
+
+      return (
+        <div className="min-h-screen py-8 px-4">
+          <div className="max-w-2xl mx-auto">
+            <Header total={counts.all} doneCount={counts.done} />
+            <ErrorBanner message={error} onClose={() => setError('')} />
+            <TodoForm onSubmit={handleAdd} submitting={submitting} />
+            <FilterTabs value={filter} onChange={setFilter} counts={counts} />
+
+            <Card className="overflow-hidden">
+              <TodoList
+                todos={visibleTodos}
+                loading={loading}
+                filter={filter}
+                onToggle={handleToggle}
+                onDelete={handleDelete}
+                busyId={busyId}
+              />
+            </Card>
+
+            <FilePreview file={file} onRefresh={loadFile} loading={fileLoading} />
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App
+    // ========================================
+
+    function App() {
+      return <TodoPage />;
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

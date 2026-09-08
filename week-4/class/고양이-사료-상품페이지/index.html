@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>냥이곳간 — 연어 &amp; 닭고기 그레인프리 사료</title>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <!-- ⚠️ 모든 CDN 은 버전을 고정한다. 미고정 시 @babel/standalone 이 8.x 로 올라가
+       type="text/babel" 인라인 변환이 통째로 깨진다. Babel 은 반드시 7.x. -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.9/babel.min.js"></script>
+  <style>
+    /* Tailwind 유틸리티로 안 되는 것만 여기에 */
+    html { scroll-behavior: smooth; }
+    @keyframes floatY {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-10px); }
+    }
+    .float-slow { animation: floatY 4s ease-in-out infinite; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fadeUp .3s ease-out; }
+  </style>
+</head>
+<body class="bg-amber-50">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback } = React;
+
+    // ========================================
+    // ⚙️ 설정 / 유틸
+    // ========================================
+
+    // localhost 하드코딩 금지 — 같은 서버에서 서빙되므로 상대 경로면 충분하다.
+    const API_BASE_URL = '/api';
+
+    const won = n => n.toLocaleString('ko-KR') + '원';
+
+    const formatDate = iso => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+
+    function Button({ variant = 'primary', size = 'md', disabled, onClick, type = 'button', className = '', children }) {
+      const variants = {
+        primary: 'bg-orange-500 text-white hover:bg-orange-600 shadow-sm shadow-orange-200',
+        secondary: 'bg-white text-stone-800 border border-stone-300 hover:bg-stone-50',
+        danger: 'bg-red-500 text-white hover:bg-red-600',
+        ghost: 'bg-transparent text-stone-600 hover:bg-stone-100',
+      };
+      const sizes = {
+        sm: 'px-3 py-1.5 text-sm',
+        md: 'px-4 py-2.5 text-sm',
+        lg: 'px-6 py-3.5 text-base',
+      };
+      return (
+        <button
+          type={type}
+          onClick={onClick}
+          disabled={disabled}
+          className={`inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition
+                      focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2
+                      disabled:opacity-40 disabled:cursor-not-allowed
+                      ${variants[variant]} ${sizes[size]} ${className}`}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function Input({ id, type = 'text', label, value, onChange, placeholder, error, disabled, required, maxLength }) {
+      return (
+        <div>
+          {label && (
+            <label htmlFor={id} className="block text-sm font-semibold text-stone-700 mb-1.5">
+              {label} {required && <span className="text-orange-500">*</span>}
+            </label>
+          )}
+          <input
+            id={id}
+            type={type}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            maxLength={maxLength}
+            aria-invalid={!!error}
+            aria-describedby={error ? `${id}-error` : undefined}
+            className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-stone-800 bg-white
+                        placeholder:text-stone-400 transition
+                        focus:outline-none focus:ring-2 focus:ring-orange-300
+                        disabled:bg-stone-100
+                        ${error ? 'border-red-400' : 'border-stone-300'}`}
+          />
+          {error && <p id={`${id}-error`} className="mt-1.5 text-xs text-red-500">{error}</p>}
+        </div>
+      );
+    }
+
+    function Textarea({ id, label, value, onChange, placeholder, error, disabled, required, rows = 5, maxLength }) {
+      return (
+        <div>
+          {label && (
+            <label htmlFor={id} className="block text-sm font-semibold text-stone-700 mb-1.5">
+              {label} {required && <span className="text-orange-500">*</span>}
+            </label>
+          )}
+          <textarea
+            id={id}
+            rows={rows}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            maxLength={maxLength}
+            aria-invalid={!!error}
+            aria-describedby={error ? `${id}-error` : undefined}
+            className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-stone-800 bg-white resize-y
+                        placeholder:text-stone-400 transition
+                        focus:outline-none focus:ring-2 focus:ring-orange-300
+                        disabled:bg-stone-100
+                        ${error ? 'border-red-400' : 'border-stone-300'}`}
+          />
+          <div className="mt-1.5 flex items-start justify-between gap-3">
+            <p id={`${id}-error`} className="text-xs text-red-500">{error || ''}</p>
+            {maxLength && <p className="text-xs text-stone-400 shrink-0">{value.length} / {maxLength}</p>}
+          </div>
+        </div>
+      );
+    }
+
+    function Select({ id, label, value, onChange, options, error, required, disabled }) {
+      return (
+        <div>
+          {label && (
+            <label htmlFor={id} className="block text-sm font-semibold text-stone-700 mb-1.5">
+              {label} {required && <span className="text-orange-500">*</span>}
+            </label>
+          )}
+          <select
+            id={id}
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+            aria-invalid={!!error}
+            className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-stone-800 bg-white transition
+                        focus:outline-none focus:ring-2 focus:ring-orange-300
+                        ${error ? 'border-red-400' : 'border-stone-300'}`}
+          >
+            {options.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+        </div>
+      );
+    }
+
+    function Card({ className = '', children }) {
+      return (
+        <div className={`bg-white rounded-2xl shadow-sm ring-1 ring-stone-900/5 ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function Badge({ tone = 'amber', className = '', children }) {
+      const tones = {
+        amber: 'bg-amber-100 text-amber-800',
+        green: 'bg-emerald-100 text-emerald-700',
+        stone: 'bg-stone-100 text-stone-600',
+        red: 'bg-red-100 text-red-600',
+      };
+      return (
+        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${tones[tone]} ${className}`}>
+          {children}
+        </span>
+      );
+    }
+
+    function Stars({ rating, size = 'text-sm' }) {
+      const full = Math.round(rating);
+      return (
+        <span className={`${size} text-amber-500 tracking-tight`} aria-label={`5점 만점에 ${rating}점`}>
+          {'★'.repeat(full)}<span className="text-stone-300">{'★'.repeat(5 - full)}</span>
+        </span>
+      );
+    }
+
+    // ========================================
+    // 🧩 Common / Layout Components
+    // ========================================
+
+    function Header() {
+      const links = [
+        { href: '#product', label: '상품' },
+        { href: '#detail', label: '상세정보' },
+        { href: '#reviews', label: '리뷰' },
+        { href: '#inquiry', label: '문의하기' },
+      ];
+      return (
+        <header className="sticky top-0 z-30 bg-amber-50/85 backdrop-blur border-b border-amber-200/70">
+          <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
+            <a href="#top" className="flex items-center gap-2 font-extrabold text-stone-800">
+              <span className="text-2xl">🐈</span>
+              <span>냥이곳간</span>
+            </a>
+            <nav className="hidden md:flex items-center gap-1">
+              {links.map(l => (
+                <a key={l.href} href={l.href}
+                   className="px-3 py-2 rounded-lg text-sm font-medium text-stone-600 hover:text-stone-900 hover:bg-amber-100 transition">
+                  {l.label}
+                </a>
+              ))}
+            </nav>
+            <a href="#inquiry">
+              <Button size="sm">문의하기</Button>
+            </a>
+          </div>
+        </header>
+      );
+    }
+
+    function Footer() {
+      return (
+        <footer className="bg-stone-800 text-stone-300">
+          <div className="mx-auto max-w-6xl px-4 py-10 grid gap-6 sm:grid-cols-3">
+            <div>
+              <p className="flex items-center gap-2 font-extrabold text-white text-lg">
+                <span>🐈</span> 냥이곳간
+              </p>
+              <p className="mt-2 text-sm text-stone-400">고양이만 생각하는 사료를 만듭니다.</p>
+            </div>
+            <div className="text-sm space-y-1">
+              <p className="font-semibold text-white mb-2">고객센터</p>
+              <p>1588-0000 (평일 10:00 ~ 17:00)</p>
+              <p>점심시간 12:30 ~ 13:30</p>
+              <p>주말·공휴일 휴무</p>
+            </div>
+            <div className="text-sm space-y-1 text-stone-400">
+              <p className="font-semibold text-white mb-2">사업자 정보</p>
+              <p>냥이곳간 · 대표 김집사</p>
+              <p>서울시 강남구 어딘가로 12</p>
+              <p className="text-xs mt-3">본 페이지는 수업용 예제입니다.</p>
+            </div>
+          </div>
+        </footer>
+      );
+    }
+
+    // ========================================
+    // 📄 Section: 상품 갤러리 + 구매 박스
+    // ========================================
+
+    function ProductGallery({ discount }) {
+      const shots = [
+        { emoji: '🐟', caption: '연어 34%', bg: 'from-orange-200 via-amber-100 to-rose-100' },
+        { emoji: '🍗', caption: '닭고기 28%', bg: 'from-amber-200 via-orange-100 to-yellow-100' },
+        { emoji: '🐈', caption: '전연령 급여', bg: 'from-rose-100 via-amber-100 to-orange-100' },
+        { emoji: '🥣', caption: '작은 알갱이', bg: 'from-lime-100 via-emerald-50 to-amber-100' },
+      ];
+      const [active, setActive] = useState(0);
+      const shot = shots[active];
+
+      return (
+        <div>
+          <div className={`relative aspect-square sm:aspect-[4/3] lg:aspect-square rounded-3xl overflow-hidden
+                           bg-gradient-to-br ${shot.bg} ring-1 ring-stone-900/5 flex items-center justify-center`}>
+            <div className="text-center">
+              <div className="text-[7rem] sm:text-[9rem] leading-none float-slow" role="img" aria-label={shot.caption}>
+                {shot.emoji}
+              </div>
+              <p className="mt-4 text-sm font-bold text-stone-700/80">{shot.caption}</p>
+            </div>
+            <div className="absolute top-4 left-4 flex flex-wrap gap-1.5">
+              <Badge tone="red">{discount}% 할인</Badge>
+              <Badge tone="green">무료배송</Badge>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-4 gap-3">
+            {shots.map((s, i) => (
+              <button
+                key={s.caption}
+                onClick={() => setActive(i)}
+                aria-label={`${s.caption} 이미지 보기`}
+                aria-pressed={active === i}
+                className={`aspect-square rounded-2xl bg-gradient-to-br ${s.bg} text-3xl flex items-center justify-center
+                            transition ring-2 ${active === i ? 'ring-orange-500' : 'ring-transparent hover:ring-orange-200'}`}
+              >
+                {s.emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function BuyBox({ product, selectedOption, onSelectOption }) {
+      const [qty, setQty] = useState(1);
+      const discount = Math.round((1 - selectedOption.price / selectedOption.listPrice) * 100);
+      const total = selectedOption.price * qty;
+      const soldOut = selectedOption.stock === 0;
+
+      return (
+        <div>
+          <p className="text-sm font-semibold text-orange-600">{product.brand}</p>
+          <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-stone-900 leading-snug">
+            {product.name}
+          </h1>
+          <p className="mt-2 text-stone-600">{product.tagline}</p>
+
+          <div className="mt-3 flex items-center gap-2">
+            <Stars rating={product.rating} />
+            <span className="text-sm font-bold text-stone-800">{product.rating}</span>
+            <a href="#reviews" className="text-sm text-stone-500 underline underline-offset-2 hover:text-stone-700">
+              리뷰 {product.reviewCount.toLocaleString('ko-KR')}건
+            </a>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {product.badges.map(b => <Badge key={b}>{b}</Badge>)}
+          </div>
+
+          <div className="mt-6 flex items-end gap-3">
+            <span className="text-3xl font-extrabold text-stone-900">{won(selectedOption.price)}</span>
+            <span className="pb-1 text-lg text-stone-400 line-through">{won(selectedOption.listPrice)}</span>
+            <span className="pb-1 text-lg font-bold text-red-500">{discount}%</span>
+          </div>
+
+          {/* 옵션 선택 */}
+          <div className="mt-6">
+            <p className="text-sm font-semibold text-stone-700 mb-2">용량 선택</p>
+            <div className="space-y-2">
+              {product.options.map(opt => {
+                const isSelected = opt.key === selectedOption.key;
+                const out = opt.stock === 0;
+                return (
+                  <button
+                    key={opt.key}
+                    onClick={() => { onSelectOption(opt.key); setQty(1); }}
+                    disabled={out}
+                    aria-pressed={isSelected}
+                    className={`w-full flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition
+                                ${isSelected ? 'border-orange-500 bg-orange-50' : 'border-stone-200 hover:border-orange-300'}
+                                ${out ? 'opacity-45 cursor-not-allowed' : ''}`}
+                  >
+                    <span className="font-semibold text-stone-800 text-sm">{opt.label}</span>
+                    <span className="flex items-center gap-2">
+                      {out
+                        ? <Badge tone="stone">품절</Badge>
+                        : opt.stock <= 20 && <Badge tone="red">{opt.stock}개 남음</Badge>}
+                      <span className="font-bold text-stone-900 text-sm">{won(opt.price)}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 수량 */}
+          <div className="mt-5 flex items-center justify-between">
+            <p className="text-sm font-semibold text-stone-700">수량</p>
+            <div className="flex items-center gap-1 rounded-xl border border-stone-300 bg-white p-1">
+              <button
+                onClick={() => setQty(q => Math.max(1, q - 1))}
+                disabled={qty <= 1 || soldOut}
+                aria-label="수량 줄이기"
+                className="w-9 h-9 rounded-lg text-lg font-bold text-stone-600 hover:bg-stone-100 disabled:opacity-30"
+              >−</button>
+              <span className="w-10 text-center font-bold text-stone-800" aria-live="polite">{qty}</span>
+              <button
+                onClick={() => setQty(q => Math.min(10, q + 1))}
+                disabled={qty >= 10 || soldOut}
+                aria-label="수량 늘리기"
+                className="w-9 h-9 rounded-lg text-lg font-bold text-stone-600 hover:bg-stone-100 disabled:opacity-30"
+              >+</button>
+            </div>
+          </div>
+
+          <div className="mt-5 flex items-center justify-between border-t border-stone-200 pt-5">
+            <span className="text-sm font-semibold text-stone-700">총 결제금액</span>
+            <span className="text-2xl font-extrabold text-orange-600">{won(total)}</span>
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <Button variant="secondary" size="lg" className="flex-1" disabled={soldOut}>🛒 장바구니</Button>
+            <Button size="lg" className="flex-1" disabled={soldOut}>
+              {soldOut ? '품절된 옵션입니다' : '바로 구매하기'}
+            </Button>
+          </div>
+
+          <p className="mt-4 text-xs text-stone-500 leading-relaxed">🚚 {product.shipping}</p>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Section: 특징 / 상세 탭 / 리뷰
+    // ========================================
+
+    function Highlights({ items }) {
+      return (
+        <section className="mx-auto max-w-6xl px-4 py-14">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-stone-900 text-center">왜 냥이곳간인가요?</h2>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {items.map(h => (
+              <Card key={h.title} className="p-6 text-center">
+                <div className="text-4xl" role="img" aria-hidden="true">{h.icon}</div>
+                <h3 className="mt-3 font-bold text-stone-900">{h.title}</h3>
+                <p className="mt-1.5 text-sm text-stone-600 leading-relaxed">{h.desc}</p>
+              </Card>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    function DetailTabs({ product }) {
+      const tabs = [
+        { key: 'nutrition', label: '영양성분' },
+        { key: 'ingredients', label: '원재료' },
+        { key: 'feeding', label: '급여 가이드' },
+        { key: 'shipping', label: '배송 · 교환' },
+      ];
+      const [tab, setTab] = useState('nutrition');
+
+      return (
+        <section id="detail" className="mx-auto max-w-6xl px-4 py-14 scroll-mt-20">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-stone-900 text-center">상세 정보</h2>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-2" role="tablist">
+            {tabs.map(t => (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={tab === t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition
+                            ${tab === t.key ? 'bg-stone-800 text-white' : 'bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50'}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <Card className="mt-6 p-6 sm:p-8 fade-up" key={tab}>
+            {tab === 'nutrition' && (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {product.nutrition.map(n => (
+                  <div key={n.label} className="rounded-xl bg-amber-50 px-4 py-3">
+                    <p className="text-xs font-semibold text-stone-500">{n.label}</p>
+                    <p className="mt-0.5 font-bold text-stone-900">{n.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {tab === 'ingredients' && (
+              <div>
+                <p className="text-sm leading-7 text-stone-700">{product.ingredients}</p>
+                <p className="mt-4 text-xs text-stone-500">
+                  ※ 인공 색소·향료·보존료를 넣지 않았습니다. 개봉 후에는 밀폐하여 서늘한 곳에 보관하고 1개월 안에 급여해 주세요.
+                </p>
+              </div>
+            )}
+
+            {tab === 'feeding' && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[320px]">
+                  <thead>
+                    <tr className="text-left text-stone-500 border-b border-stone-200">
+                      <th className="py-2.5 font-semibold">체중</th>
+                      <th className="py-2.5 font-semibold">하루 권장 급여량</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {product.feeding.map(f => (
+                      <tr key={f.weight} className="border-b border-stone-100 last:border-0">
+                        <td className="py-2.5 text-stone-700">{f.weight}</td>
+                        <td className="py-2.5 font-semibold text-stone-900">{f.amount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="mt-4 text-xs text-stone-500">
+                  ※ 활동량·중성화 여부에 따라 조절하세요. 사료를 바꿀 때는 7일에 걸쳐 기존 사료와 섞어 주는 것을 권장합니다.
+                </p>
+              </div>
+            )}
+
+            {tab === 'shipping' && (
+              <ul className="space-y-2.5 text-sm text-stone-700">
+                <li>🚚 {product.shipping}</li>
+                <li>📦 미개봉 상품은 수령 후 7일 이내 교환·반품이 가능합니다.</li>
+                <li>🐾 개봉 후에도 기호성 문제라면 30일 이내 1회 전액 환불해 드립니다.</li>
+                <li>💬 그 밖의 궁금한 점은 아래 <a href="#inquiry" className="font-semibold text-orange-600 underline underline-offset-2">문의하기</a>로 남겨 주세요.</li>
+              </ul>
+            )}
+          </Card>
+        </section>
+      );
+    }
+
+    function Reviews({ product }) {
+      return (
+        <section id="reviews" className="mx-auto max-w-6xl px-4 py-14 scroll-mt-20">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-stone-900">구매 후기</h2>
+            <p className="text-sm text-stone-500">
+              <Stars rating={product.rating} /> <span className="font-bold text-stone-800">{product.rating}</span>
+              {' · '}{product.reviewCount.toLocaleString('ko-KR')}건
+            </p>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {product.reviews.map(r => (
+              <Card key={r.id} className="p-5">
+                <div className="flex items-center justify-between">
+                  <p className="font-bold text-stone-800 text-sm">{r.author}</p>
+                  <p className="text-xs text-stone-400">{r.date}</p>
+                </div>
+                <div className="mt-1"><Stars rating={r.rating} size="text-xs" /></div>
+                <p className="mt-3 text-sm text-stone-600 leading-relaxed">{r.body}</p>
+              </Card>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    // ========================================
+    // 📄 Section: 문의하기 (DB 저장)
+    // ========================================
+
+    const EMPTY_FORM = { name: '', email: '', phone: '', topic: '', optionKey: '', message: '' };
+
+    function InquirySection({ product, selectedOptionKey }) {
+      const [form, setForm] = useState({ ...EMPTY_FORM, topic: product.topics[0], optionKey: selectedOptionKey });
+      const [errors, setErrors] = useState({});
+      const [submitting, setSubmitting] = useState(false);
+      const [toast, setToast] = useState(null); // { type: 'success' | 'error', text }
+      const [list, setList] = useState([]);
+      const [listLoading, setListLoading] = useState(true);
+      const [listError, setListError] = useState(null);
+
+      // 상단에서 고른 용량을 폼 기본값에 반영한다.
+      useEffect(() => {
+        setForm(f => ({ ...f, optionKey: selectedOptionKey }));
+      }, [selectedOptionKey]);
+
+      const loadInquiries = useCallback(async () => {
+        setListLoading(true);
+        try {
+          const res = await fetch(`${API_BASE_URL}/inquiries`);
+          const json = await res.json();
+          if (!res.ok || !json.success) throw new Error(json.message || '문의 내역을 불러오지 못했습니다.');
+          setList(json.data);
+          setListError(null);
+        } catch (err) {
+          setListError(err.message);
+        } finally {
+          setListLoading(false);
+        }
+      }, []);
+
+      useEffect(() => { loadInquiries(); }, [loadInquiries]);
+
+      const setField = (key, value) => {
+        setForm(f => ({ ...f, [key]: value }));
+        setErrors(e => ({ ...e, [key]: undefined }));
+      };
+
+      // 브라우저 검증 — 서버(server.js)에서도 같은 규칙으로 한 번 더 검증한다.
+      const validate = () => {
+        const next = {};
+        if (!form.name.trim()) next.name = '이름을 입력해 주세요.';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = '이메일 형식을 확인해 주세요.';
+        if (form.phone.trim() && !/^[0-9+\-\s()]{7,20}$/.test(form.phone.trim())) next.phone = '숫자와 - 만 입력해 주세요.';
+        if (!form.topic) next.topic = '문의 유형을 선택해 주세요.';
+        if (form.message.trim().length < 5) next.message = '문의 내용을 5자 이상 적어 주세요.';
+        setErrors(next);
+        return Object.keys(next).length === 0;
+      };
+
+      const handleSubmit = async e => {
+        e.preventDefault();
+        setToast(null);
+        if (!validate()) return;
+
+        setSubmitting(true);
+        try {
+          const res = await fetch(`${API_BASE_URL}/inquiries`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(form),
+          });
+          const json = await res.json();
+          if (!res.ok || !json.success) throw new Error(json.message || '문의를 보내지 못했습니다.');
+
+          setToast({ type: 'success', text: '문의가 접수됐습니다. 영업일 기준 1일 안에 답변드릴게요!' });
+          setForm({ ...EMPTY_FORM, topic: product.topics[0], optionKey: selectedOptionKey });
+          loadInquiries();
+        } catch (err) {
+          setToast({ type: 'error', text: err.message });
+        } finally {
+          setSubmitting(false);
+        }
+      };
+
+      const topicOptions = product.topics.map(t => ({ value: t, label: t }));
+      const optionChoices = [
+        { value: '', label: '선택 안 함' },
+        ...product.options.map(o => ({ value: o.key, label: o.label })),
+      ];
+
+      return (
+        <section id="inquiry" className="bg-white border-y border-stone-200 scroll-mt-20">
+          <div className="mx-auto max-w-6xl px-4 py-14 grid gap-10 lg:grid-cols-5">
+            {/* 폼 */}
+            <div className="lg:col-span-3">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-stone-900">문의하기</h2>
+              <p className="mt-2 text-sm text-stone-600">
+                상품·배송·대량 구매 등 궁금한 점을 남겨 주세요. 남겨 주신 내용은 데이터베이스에 저장되고, 답변은 이메일로 보내드립니다.
+              </p>
+
+              <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    id="name" label="이름" required maxLength={40}
+                    value={form.name} onChange={e => setField('name', e.target.value)}
+                    placeholder="김집사" error={errors.name} disabled={submitting}
+                  />
+                  <Input
+                    id="email" type="email" label="이메일" required
+                    value={form.email} onChange={e => setField('email', e.target.value)}
+                    placeholder="cat@example.com" error={errors.email} disabled={submitting}
+                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    id="phone" label="연락처 (선택)"
+                    value={form.phone} onChange={e => setField('phone', e.target.value)}
+                    placeholder="010-0000-0000" error={errors.phone} disabled={submitting}
+                  />
+                  <Select
+                    id="topic" label="문의 유형" required
+                    value={form.topic} onChange={e => setField('topic', e.target.value)}
+                    options={topicOptions} error={errors.topic} disabled={submitting}
+                  />
+                </div>
+
+                <Select
+                  id="optionKey" label="문의할 옵션 (선택)"
+                  value={form.optionKey} onChange={e => setField('optionKey', e.target.value)}
+                  options={optionChoices} disabled={submitting}
+                />
+
+                <Textarea
+                  id="message" label="문의 내용" required rows={6} maxLength={1000}
+                  value={form.message} onChange={e => setField('message', e.target.value)}
+                  placeholder="예) 8살 중성화한 고양이인데 5kg 포장은 언제 재입고 되나요?"
+                  error={errors.message} disabled={submitting}
+                />
+
+                {toast && (
+                  <div
+                    role="status"
+                    className={`rounded-xl px-4 py-3 text-sm font-semibold fade-up
+                                ${toast.type === 'success'
+                                  ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                                  : 'bg-red-50 text-red-600 ring-1 ring-red-200'}`}
+                  >
+                    {toast.type === 'success' ? '✅ ' : '⚠️ '}{toast.text}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 pt-1">
+                  <Button type="submit" size="lg" disabled={submitting}>
+                    {submitting ? '보내는 중…' : '문의 보내기'}
+                  </Button>
+                  <p className="text-xs text-stone-500">개인정보는 답변 목적으로만 사용합니다.</p>
+                </div>
+              </form>
+            </div>
+
+            {/* 최근 문의 */}
+            <div className="lg:col-span-2">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-stone-900">최근 문의</h3>
+                <Button variant="ghost" size="sm" onClick={loadInquiries} disabled={listLoading}>새로고침</Button>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {listLoading && (
+                  <>
+                    {[0, 1, 2].map(i => (
+                      <div key={i} className="h-24 rounded-2xl bg-stone-100 animate-pulse" />
+                    ))}
+                  </>
+                )}
+
+                {!listLoading && listError && (
+                  <div className="rounded-2xl bg-red-50 ring-1 ring-red-200 px-4 py-5 text-sm text-red-600">
+                    ⚠️ {listError}
+                  </div>
+                )}
+
+                {!listLoading && !listError && list.length === 0 && (
+                  <div className="rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-8 text-center">
+                    <p className="text-3xl">🐾</p>
+                    <p className="mt-2 text-sm text-stone-600">아직 문의가 없어요. 첫 문의를 남겨 보세요!</p>
+                  </div>
+                )}
+
+                {!listLoading && !listError && list.map(item => (
+                  <Card key={item.id} className="p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Badge>{item.topic}</Badge>
+                        <span className="text-sm font-bold text-stone-800 truncate">{item.name}</span>
+                      </div>
+                      <span className="text-xs text-stone-400 shrink-0">{formatDate(item.createdAt)}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-stone-600 leading-relaxed line-clamp-3">{item.message}</p>
+                    <p className="mt-2 text-xs text-stone-400">
+                      {item.email}{item.optionKey ? ` · ${item.optionKey}` : ''}
+                    </p>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // ========================================
+    // 🚀 App
+    // ========================================
+
+    function App() {
+      const [product, setProduct] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [optionKey, setOptionKey] = useState('');
+
+      useEffect(() => {
+        let cancelled = false;
+        fetch(`${API_BASE_URL}/product`)
+          .then(res => res.json())
+          .then(json => {
+            if (cancelled) return;
+            if (!json.success) throw new Error(json.message || '상품 정보를 불러오지 못했습니다.');
+            setProduct(json.data);
+            // 품절이 아닌 첫 옵션을 기본 선택
+            const first = json.data.options.find(o => o.stock > 0) || json.data.options[0];
+            setOptionKey(first.key);
+          })
+          .catch(err => { if (!cancelled) setError(err.message); })
+          .finally(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
+      }, []);
+
+      const selectedOption = useMemo(
+        () => product?.options.find(o => o.key === optionKey) || product?.options[0],
+        [product, optionKey]
+      );
+
+      const discountRate = selectedOption
+        ? Math.round((1 - selectedOption.price / selectedOption.listPrice) * 100)
+        : 0;
+
+      if (loading) {
+        return (
+          <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-stone-500">
+            <div className="text-5xl float-slow">🐈</div>
+            <p className="text-sm font-semibold">상품 정보를 불러오는 중…</p>
+          </div>
+        );
+      }
+
+      if (error || !product) {
+        return (
+          <div className="min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center">
+            <div className="text-5xl">😿</div>
+            <p className="font-bold text-stone-800">상품 정보를 불러오지 못했습니다.</p>
+            <p className="text-sm text-stone-500">{error}</p>
+            <Button onClick={() => window.location.reload()}>다시 시도</Button>
+          </div>
+        );
+      }
+
+      return (
+        <div id="top" className="min-h-screen flex flex-col">
+          <Header />
+
+          <main className="flex-1">
+            <section id="product" className="mx-auto max-w-6xl px-4 py-10 sm:py-14 scroll-mt-20">
+              <div className="grid gap-10 lg:grid-cols-2">
+                <ProductGallery discount={discountRate} />
+                <BuyBox
+                  product={product}
+                  selectedOption={selectedOption}
+                  onSelectOption={setOptionKey}
+                />
+              </div>
+            </section>
+
+            <Highlights items={product.highlights} />
+            <DetailTabs product={product} />
+            <Reviews product={product} />
+            <InquirySection product={product} selectedOptionKey={optionKey} />
+          </main>
+
+          <Footer />
+        </div>
+      );
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

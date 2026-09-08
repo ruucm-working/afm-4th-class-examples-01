@@ -1,0 +1,14 @@
+{
+  "name": "todo-02",
+  "version": "1.0.0",
+  "private": true,
+  "description": "할 일을 PostgreSQL(Supabase)에 저장하는 투두 앱",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "pg": "^8.13.1"
+  }
+}

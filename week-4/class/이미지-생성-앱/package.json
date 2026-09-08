@@ -1,0 +1,14 @@
+{
+  "name": "imagination-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "fal.ai 로 진짜 이미지를 만드는 AI 이미지 생성 스튜디오 (키 없이도 데모 모드로 동작)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^5.2.1"
+  }
+}
