@@ -16,3 +16,6 @@ node_modules/
 *.mkv
 *.m4a
 *.mp3
+
+# Codex 로컬 설정 (API 키 포함)
+.codex/config.toml
