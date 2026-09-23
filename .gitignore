@@ -19,3 +19,6 @@ node_modules/
 
 # Codex 로컬 설정 (API 키 포함)
 .codex/config.toml
+
+# macOS
+.DS_Store
