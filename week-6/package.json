@@ -1,0 +1,17 @@
+{
+  "name": "moom-shop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MOOM 무움가구 쇼핑몰 (Express + PostgreSQL + 토스페이먼츠)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^16.4.7",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.16.3"
+  }
+}

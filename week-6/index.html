@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MOOM · 무움가구</title>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <!-- ⚠️ 모든 CDN 은 버전 고정. Babel 은 반드시 7.x (8.x 는 인라인 text/babel 미지원) -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.9/babel.min.js"></script>
+  <!-- 토스페이먼츠 결제 SDK v2. 클라이언트 키는 서버의 /api/config 에서 받아 온다 -->
+  <script src="https://js.tosspayments.com/v2/standard"></script>
+  <style>
+    /* Tailwind 유틸리티로 표현 불가능한 것만 */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .fade-up { animation: fadeUp .35s ease-out both; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-[#faf9f7] text-stone-800 antialiased">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef, useContext, useReducer, createContext, useCallback } = React;
+
+    // ========================================
+    // 🗃️ Demo Data (데모 데이터)
+    // ========================================
+
+    const CATEGORIES = [
+      { id: 'all',     name: '전체' },
+      { id: 'sofa',    name: '소파' },
+      { id: 'chair',   name: '의자' },
+      { id: 'table',   name: '테이블' },
+      { id: 'bed',     name: '침실' },
+      { id: 'storage', name: '수납' },
+      { id: 'light',   name: '조명' },
+    ];
+
+    const PRODUCTS = [
+      {
+        id: 'sofa-linen', category: 'sofa', name: '오슬로 린넨 3인 소파',
+        brand: 'MOOM Studio', price: 1290000, listPrice: 1590000,
+        image: 'images/sofa-linen.png', rating: 4.8, reviews: 214, badge: 'BEST',
+        colors: ['오트밀', '차콜', '샌드'],
+        size: 'W 2000 × D 900 × H 830 mm',
+        material: '벨기에 린넨 100%, 오크 원목 다리',
+        summary: '구름 같은 시트감의 3인용 린넨 소파. 커버는 통째로 분리해 세탁할 수 있습니다.',
+        stock: 12,
+      },
+      {
+        id: 'sofa-leather', category: 'sofa', name: '헤이든 가죽 2인 소파',
+        brand: 'MOOM Studio', price: 1740000, listPrice: 1740000,
+        image: 'images/sofa-leather.png', rating: 4.7, reviews: 98, badge: 'NEW',
+        colors: ['카멜', '다크브라운'],
+        size: 'W 1600 × D 880 × H 790 mm',
+        material: '이탈리아산 세미아닐린 소가죽, 월넛 원목 다리',
+        summary: '쓸수록 색이 깊어지는 천연 소가죽. 미드센추리 실루엣의 2인 소파입니다.',
+        stock: 4,
+      },
+      {
+        id: 'chair-lounge', category: 'chair', name: '루미 라운지 체어',
+        brand: 'Northline', price: 489000, listPrice: 620000,
+        image: 'images/chair-lounge.png', rating: 4.9, reviews: 331, badge: 'BEST',
+        colors: ['아이보리 부클레', '모카'],
+        size: 'W 720 × D 780 × H 760 mm',
+        material: '부클레 패브릭, 월넛 원목 프레임',
+        summary: '거실 한 켠을 독서 코너로 만들어 주는 곡선형 라운지 체어.',
+        stock: 21,
+      },
+      {
+        id: 'chair-dining', category: 'chair', name: '베른 라탄 다이닝 체어',
+        brand: 'Northline', price: 168000, listPrice: 198000,
+        image: 'images/chair-dining.png', rating: 4.6, reviews: 452, badge: null,
+        colors: ['내추럴 오크', '블랙 애쉬'],
+        size: 'W 450 × D 500 × H 800 mm',
+        material: '오크 원목, 천연 라탄 시트',
+        summary: '허리를 받쳐 주는 곡면 등받이. 4개 이상 구매 시 추가 할인됩니다.',
+        stock: 60,
+      },
+      {
+        id: 'table-dining', category: 'table', name: '필드 오크 4인 식탁',
+        brand: 'MOOM Studio', price: 890000, listPrice: 1050000,
+        image: 'images/table-dining.png', rating: 4.8, reviews: 176, badge: null,
+        colors: ['내추럴', '라이트월넛'],
+        size: 'W 1400 × D 800 × H 740 mm',
+        material: '북미산 화이트 오크 원목, 친환경 오일 마감',
+        summary: '옹이 하나까지 결이 살아 있는 원목 상판. 4인 가족 기준 사이즈입니다.',
+        stock: 8,
+      },
+      {
+        id: 'table-coffee', category: 'table', name: '스톤 라운드 커피테이블',
+        brand: 'Formo', price: 372000, listPrice: 420000,
+        image: 'images/table-coffee.png', rating: 4.5, reviews: 87, badge: null,
+        colors: ['화이트 마블', '블랙 마블'],
+        size: 'Ø 800 × H 400 mm',
+        material: '천연 대리석 상판, 분체도장 스틸 프레임',
+        summary: '소파 앞 공간을 무겁지 않게 채우는 원형 대리석 테이블.',
+        stock: 15,
+      },
+      {
+        id: 'bed-frame', category: 'bed', name: '무브 저상형 퀸 침대',
+        brand: 'MOOM Studio', price: 1120000, listPrice: 1320000,
+        image: 'images/bed-frame.png', rating: 4.9, reviews: 289, badge: 'BEST',
+        colors: ['오트밀', '그레이'],
+        size: 'W 1620 × D 2120 × H 850 mm (Q)',
+        material: '폴리 혼방 패브릭, 자작나무 합판 프레임',
+        summary: '낮은 높이로 천장이 높아 보이는 저상형 프레임. 매트리스는 별도입니다.',
+        stock: 6,
+      },
+      {
+        id: 'bed-nightstand', category: 'bed', name: '코어 원목 2단 협탁',
+        brand: 'Formo', price: 219000, listPrice: 219000,
+        image: 'images/bed-nightstand.png', rating: 4.4, reviews: 63, badge: 'NEW',
+        colors: ['오크', '월넛'],
+        size: 'W 450 × D 400 × H 550 mm',
+        material: '애쉬 원목, 황동 손잡이',
+        summary: '서랍 두 칸에 잠들기 전 물건들을 정리하세요. 황동 손잡이 포인트.',
+        stock: 33,
+      },
+      {
+        id: 'storage-bookshelf', category: 'storage', name: '라인 5단 오픈 책장',
+        brand: 'Northline', price: 328000, listPrice: 398000,
+        image: 'images/storage-bookshelf.png', rating: 4.6, reviews: 141, badge: null,
+        colors: ['오크', '화이트'],
+        size: 'W 800 × D 320 × H 1800 mm',
+        material: 'E0 등급 자작 합판, 수성 도장',
+        summary: '책과 오브제를 함께 두기 좋은 5단 오픈형. 벽 고정 브래킷 포함.',
+        stock: 19,
+      },
+      {
+        id: 'storage-cabinet', category: 'storage', name: '리플 월넛 사이드보드',
+        brand: 'MOOM Studio', price: 745000, listPrice: 890000,
+        image: 'images/storage-cabinet.png', rating: 4.8, reviews: 74, badge: null,
+        colors: ['월넛', '블랙'],
+        size: 'W 1600 × D 400 × H 700 mm',
+        material: '월넛 무늬목, 도어 내부 가변 선반',
+        summary: '세로 골이 들어간 플루티드 도어. 거실 TV장으로도 잘 어울립니다.',
+        stock: 5,
+      },
+      {
+        id: 'light-floor', category: 'light', name: '아크 플로어 램프',
+        brand: 'Formo', price: 189000, listPrice: 230000,
+        image: 'images/light-floor.png', rating: 4.7, reviews: 208, badge: null,
+        colors: ['매트 블랙', '아이보리'],
+        size: 'W 400 × H 1550 mm',
+        material: '리넨 갓, 분체도장 스틸 스탠드',
+        summary: '소파 옆 간접 조명. E26 전구 포함, 밝기 조절 스위치 내장.',
+        stock: 27,
+      },
+      {
+        id: 'light-pendant', category: 'light', name: '윈드 라탄 펜던트',
+        brand: 'Northline', price: 134000, listPrice: 134000,
+        image: 'images/light-pendant.png', rating: 4.5, reviews: 119, badge: 'NEW',
+        colors: ['내추럴 라탄'],
+        size: 'Ø 450 × H 320 mm',
+        material: '천연 라탄 위빙, 코드 길이 1.2 m',
+        summary: '식탁 위에 따뜻한 그림자를 드리우는 수공예 라탄 갓.',
+        stock: 41,
+      },
+    ];
+
+    const SHIPPING_FEE = 30000;
+    const FREE_SHIPPING_OVER = 1000000;
+    const won = (n) => n.toLocaleString('ko-KR') + '원';
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+
+    function Button({ variant = 'primary', size = 'md', className = '', children, ...props }) {
+      const base = 'inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:ring-offset-2';
+      const variants = {
+        primary:   'bg-stone-900 text-white hover:bg-stone-700',
+        secondary: 'bg-white text-stone-900 border border-stone-300 hover:bg-stone-100',
+        danger:    'bg-red-600 text-white hover:bg-red-700',
+        ghost:     'bg-transparent text-stone-600 hover:bg-stone-200/70',
+      };
+      const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-5 py-2.5 text-sm', lg: 'px-7 py-3.5 text-base' };
+      return (
+        <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props}>
+          {children}
+        </button>
+      );
+    }
+
+    function Input({ label, error, className = '', id, ...props }) {
+      const inputId = id || `input-${label || 'field'}`;
+      return (
+        <div className={className}>
+          {label && <label htmlFor={inputId} className="block mb-1.5 text-sm text-stone-600">{label}</label>}
+          <input
+            id={inputId}
+            aria-invalid={!!error}
+            className={`w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-stone-400
+              ${error ? 'border-red-400 focus:border-red-500' : 'border-stone-300 focus:border-stone-800'}`}
+            {...props}
+          />
+          {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+        </div>
+      );
+    }
+
+    function Select({ label, className = '', id, children, ...props }) {
+      const selectId = id || `select-${label || 'field'}`;
+      return (
+        <div className={className}>
+          {label && <label htmlFor={selectId} className="block mb-1.5 text-sm text-stone-600">{label}</label>}
+          <select
+            id={selectId}
+            className="w-full rounded-lg border border-stone-300 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-stone-800"
+            {...props}
+          >
+            {children}
+          </select>
+        </div>
+      );
+    }
+
+    function Card({ className = '', children, ...props }) {
+      return (
+        <div className={`rounded-2xl bg-white shadow-sm ring-1 ring-stone-900/5 ${className}`} {...props}>
+          {children}
+        </div>
+      );
+    }
+
+    function Badge({ tone = 'neutral', className = '', children }) {
+      const tones = {
+        neutral: 'bg-stone-100 text-stone-600',
+        dark:    'bg-stone-900 text-white',
+        sale:    'bg-red-600 text-white',
+        soft:    'bg-amber-100 text-amber-800',
+      };
+      return (
+        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${tones[tone]} ${className}`}>
+          {children}
+        </span>
+      );
+    }
+
+    function Modal({ isOpen, onClose, title, size = 'md', children }) {
+      useEffect(() => {
+        if (!isOpen) return;
+        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', onKey);
+        document.body.style.overflow = 'hidden';
+        return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+      }, [isOpen, onClose]);
+
+      if (!isOpen) return null;
+      const sizes = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-2xl' };
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-stone-900/40" onClick={onClose} aria-hidden="true" />
+          <div role="dialog" aria-modal="true" aria-label={title}
+               className={`relative w-full ${sizes[size]} rounded-2xl bg-white p-6 shadow-xl fade-up`}>
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <h2 className="text-lg font-semibold">{title}</h2>
+              <button onClick={onClose} aria-label="닫기"
+                      className="-m-1 rounded-full p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700">✕</button>
+            </div>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    function Rating({ value, count }) {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs text-stone-500">
+          <span className="text-amber-500" aria-hidden="true">★</span>
+          <span className="font-medium text-stone-700">{value.toFixed(1)}</span>
+          {count != null && <span>({count})</span>}
+        </span>
+      );
+    }
+
+    // ========================================
+    // 🔀 Router (hash-based)
+    // ========================================
+
+    const RouterContext = createContext(null);
+    const useRouter = () => useContext(RouterContext);
+    const useParams = () => useContext(RouterContext).params;
+
+    function matchRoute(pattern, path) {
+      const p = pattern.split('/').filter(Boolean);
+      const c = path.split('/').filter(Boolean);
+      if (p.length !== c.length) return null;
+      const params = {};
+      for (let i = 0; i < p.length; i++) {
+        if (p[i].startsWith(':')) params[p[i].slice(1)] = decodeURIComponent(c[i]);
+        else if (p[i] !== c[i]) return null;
+      }
+      return params;
+    }
+
+    function Router({ children }) {
+      const read = () => window.location.hash.replace(/^#/, '') || '/';
+      const [path, setPath] = useState(read);
+      const [params, setParams] = useState({});
+
+      useEffect(() => {
+        const onHash = () => { setPath(read()); window.scrollTo({ top: 0 }); };
+        window.addEventListener('hashchange', onHash);
+        return () => window.removeEventListener('hashchange', onHash);
+      }, []);
+
+      const navigate = useCallback((to) => { window.location.hash = to; }, []);
+
+      return (
+        <RouterContext.Provider value={{ path, params, setParams, navigate }}>
+          {children}
+        </RouterContext.Provider>
+      );
+    }
+
+    function Routes({ children, fallback }) {
+      const { path, setParams } = useRouter();
+      const routes = React.Children.toArray(children);
+      const pathname = path.split('?')[0];   // 쿼리스트링(?c=sofa)은 매칭에서 제외
+      let matched = null, matchedParams = null;
+
+      for (const route of routes) {
+        const params = matchRoute(route.props.path, pathname);
+        if (params) { matched = route; matchedParams = params; break; }
+      }
+
+      useEffect(() => { setParams(matchedParams || {}); }, [path]);
+
+      if (!matched) return fallback || null;
+      return <div key={path} className="fade-up">{matched.props.element}</div>;
+    }
+
+    function Route() { return null; }
+
+    function Link({ to, className = '', children, ...props }) {
+      return <a href={`#${to}`} className={className} {...props}>{children}</a>;
+    }
+
+    // ========================================
+    // 🛒 Cart Store (Context + useReducer)
+    // ========================================
+
+    const CartContext = createContext(null);
+    const useCart = () => useContext(CartContext);
+    const CART_KEY = 'moom-cart-v1';
+
+    function cartReducer(state, action) {
+      switch (action.type) {
+        case 'add': {
+          const key = action.item.id + '::' + action.item.color;
+          const found = state.find((i) => i.key === key);
+          if (found) {
+            return state.map((i) => i.key === key ? { ...i, qty: Math.min(i.qty + action.item.qty, 99) } : i);
+          }
+          return [...state, { ...action.item, key }];
+        }
+        case 'qty':
+          return state.map((i) => i.key === action.key ? { ...i, qty: Math.max(1, Math.min(99, action.qty)) } : i);
+        case 'remove':
+          return state.filter((i) => i.key !== action.key);
+        case 'clear':
+          return [];
+        default:
+          return state;
+      }
+    }
+
+    function CartProvider({ children }) {
+      const [items, dispatch] = useReducer(cartReducer, null, () => {
+        try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch { return []; }
+      });
+
+      useEffect(() => {
+        try { localStorage.setItem(CART_KEY, JSON.stringify(items)); } catch {}
+      }, [items]);
+
+      const count = items.reduce((s, i) => s + i.qty, 0);
+      const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+      const shipping = items.length === 0 || subtotal >= FREE_SHIPPING_OVER ? 0 : SHIPPING_FEE;
+
+      return (
+        <CartContext.Provider value={{ items, dispatch, count, subtotal, shipping, total: subtotal + shipping }}>
+          {children}
+        </CartContext.Provider>
+      );
+    }
+
+    // ========================================
+    // 🔑 API 호출 + 로그인 상태 (JWT)
+    // ========================================
+
+    const TOKEN_KEY = 'moom-token-v1';
+    const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } };
+
+    // 모든 서버 호출은 이 함수를 거친다. 토큰을 Authorization 헤더에 자동으로 붙이고,
+    // { success:false } 응답은 예외로 바꿔서 화면에서 try/catch 로 받게 한다.
+    async function api(path, { method = 'GET', body, auth = true } = {}) {
+      const headers = {};
+      if (body !== undefined) headers['Content-Type'] = 'application/json';
+      const token = auth ? getToken() : '';
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch(`/api${path}`, {
+        method, headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      const json = await res.json().catch(() => ({ success: false, message: '서버 응답을 읽지 못했습니다.' }));
+      if (!res.ok || !json.success) {
+        throw Object.assign(new Error(json.message || '요청에 실패했습니다.'), { status: res.status });
+      }
+      return json;
+    }
+
+    const AuthContext = createContext(null);
+    const useAuth = () => useContext(AuthContext);
+
+    function AuthProvider({ children }) {
+      const [user, setUser] = useState(null);
+      const [ready, setReady] = useState(false);
+
+      // 새로고침해도 로그인이 유지되도록, 저장된 토큰으로 내 정보를 다시 물어본다
+      useEffect(() => {
+        if (!getToken()) { setReady(true); return; }
+        api('/auth/me')
+          .then((r) => setUser(r.data.user))
+          .catch(() => { try { localStorage.removeItem(TOKEN_KEY); } catch {} })
+          .finally(() => setReady(true));
+      }, []);
+
+      const save = (data) => {
+        try { localStorage.setItem(TOKEN_KEY, data.token); } catch {}
+        setUser(data.user);
+      };
+
+      const login = async (email, password) => {
+        const r = await api('/auth/login', { method: 'POST', body: { email, password }, auth: false });
+        save(r.data);
+      };
+      const signup = async (email, password, name) => {
+        const r = await api('/auth/signup', { method: 'POST', body: { email, password, name }, auth: false });
+        save(r.data);
+      };
+      const logout = () => {
+        try { localStorage.removeItem(TOKEN_KEY); } catch {}
+        setUser(null);
+      };
+
+      return (
+        <AuthContext.Provider value={{ user, ready, login, signup, logout }}>
+          {children}
+        </AuthContext.Provider>
+      );
+    }
+
+    // 해시 주소의 쿼리스트링(#/cart?failed=1) 을 읽는다
+    function useQuery() {
+      const { path } = useRouter();
+      return useMemo(() => new URLSearchParams(path.split('?')[1] || ''), [path]);
+    }
+
+    const ORDER_STATUS = {
+      READY:  { label: '결제 대기', tone: 'neutral' },
+      PAID:   { label: '결제 완료', tone: 'dark' },
+      FAILED: { label: '결제 실패', tone: 'sale' },
+    };
+
+    // ========================================
+    // 🧩 Common / Layout Components
+    // ========================================
+
+    function Header() {
+      const { count } = useCart();
+      const { user, logout } = useAuth();
+      const { path, navigate } = useRouter();
+      const [open, setOpen] = useState(false);
+
+      const navItems = [
+        { to: '/', label: '홈' },
+        ...CATEGORIES.filter((c) => c.id !== 'all').map((c) => ({ to: `/products?c=${c.id}`, label: c.name })),
+      ];
+
+      return (
+        <header className="sticky top-0 z-40 border-b border-stone-200/80 bg-[#faf9f7]/90 backdrop-blur">
+          <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
+            <Link to="/" className="text-xl font-semibold tracking-[0.2em]">MOOM</Link>
+
+            <nav className="hidden flex-1 items-center gap-1 md:flex" aria-label="주요 메뉴">
+              {navItems.map((n) => (
+                <Link key={n.to} to={n.to}
+                      className={`rounded-full px-3 py-1.5 text-sm transition-colors hover:bg-stone-200/70
+                        ${path === n.to ? 'text-stone-900 font-medium' : 'text-stone-600'}`}>
+                  {n.label}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="ml-auto flex items-center gap-1">
+              {user ? (
+                <div className="hidden items-center gap-1 sm:flex">
+                  <Link to="/mypage" className="rounded-full px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-200/70">
+                    <strong className="font-medium text-stone-900">{user.name}</strong>님 · 마이페이지
+                  </Link>
+                  <button onClick={() => { logout(); navigate('/'); }}
+                          className="rounded-full px-3 py-1.5 text-sm text-stone-500 hover:bg-stone-200/70">로그아웃</button>
+                </div>
+              ) : (
+                <div className="hidden items-center gap-1 sm:flex">
+                  <Link to="/login" className="rounded-full px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-200/70">로그인</Link>
+                  <Link to="/signup" className="rounded-full bg-stone-900 px-3.5 py-1.5 text-sm text-white hover:bg-stone-700">회원가입</Link>
+                </div>
+              )}
+              <Link to="/products" className="rounded-full p-2 text-stone-600 hover:bg-stone-200/70" aria-label="상품 검색">🔍</Link>
+              <Link to="/cart" className="relative rounded-full p-2 text-stone-600 hover:bg-stone-200/70" aria-label={`장바구니 ${count}개`}>
+                🛒
+                {count > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-stone-900 px-1 text-[11px] font-medium text-white">
+                    {count}
+                  </span>
+                )}
+              </Link>
+              <button className="rounded-full p-2 text-stone-600 hover:bg-stone-200/70 md:hidden"
+                      onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label="메뉴 열기">
+                ☰
+              </button>
+            </div>
+          </div>
+
+          {open && (
+            <nav className="border-t border-stone-200 px-4 py-3 md:hidden" aria-label="모바일 메뉴">
+              <div className="grid grid-cols-3 gap-2">
+                {navItems.map((n) => (
+                  <Link key={n.to} to={n.to} onClick={() => setOpen(false)}
+                        className="rounded-lg bg-white px-3 py-2 text-center text-sm ring-1 ring-stone-200">
+                    {n.label}
+                  </Link>
+                ))}
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2 border-t border-stone-200 pt-3">
+                {user ? (
+                  <>
+                    <Link to="/mypage" onClick={() => setOpen(false)}
+                          className="rounded-lg bg-white px-3 py-2 text-center text-sm ring-1 ring-stone-200">마이페이지</Link>
+                    <button onClick={() => { logout(); setOpen(false); navigate('/'); }}
+                            className="rounded-lg bg-white px-3 py-2 text-center text-sm ring-1 ring-stone-200">로그아웃</button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/login" onClick={() => setOpen(false)}
+                          className="rounded-lg bg-white px-3 py-2 text-center text-sm ring-1 ring-stone-200">로그인</Link>
+                    <Link to="/signup" onClick={() => setOpen(false)}
+                          className="rounded-lg bg-stone-900 px-3 py-2 text-center text-sm text-white">회원가입</Link>
+                  </>
+                )}
+              </div>
+            </nav>
+          )}
+        </header>
+      );
+    }
+
+    function Footer() {
+      return (
+        <footer className="mt-24 border-t border-stone-200 bg-white/60">
+          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-3">
+            <div>
+              <p className="text-lg font-semibold tracking-[0.2em]">MOOM</p>
+              <p className="mt-3 text-sm leading-relaxed text-stone-500">
+                오래 두고 쓰는 가구를 만듭니다.<br />
+                무움가구 · 서울시 성동구 성수이로 24
+              </p>
+            </div>
+            <div className="text-sm text-stone-500">
+              <p className="mb-2 font-medium text-stone-700">고객센터</p>
+              <p>1600-0000 (평일 10:00–18:00)</p>
+              <p>help@moom.example</p>
+            </div>
+            <div className="text-sm text-stone-500">
+              <p className="mb-2 font-medium text-stone-700">배송 · 교환</p>
+              <p>{won(FREE_SHIPPING_OVER)} 이상 무료배송</p>
+              <p>설치 배송 · 수령 후 7일 이내 교환</p>
+            </div>
+          </div>
+          <p className="border-t border-stone-200 py-5 text-center text-xs text-stone-400">
+            © 2026 MOOM. 수업용 데모 사이트이며 실제 판매는 이루어지지 않습니다.
+          </p>
+        </footer>
+      );
+    }
+
+    function ProductCard({ product }) {
+      const discount = product.listPrice > product.price
+        ? Math.round((1 - product.price / product.listPrice) * 100) : 0;
+
+      return (
+        <Link to={`/product/${product.id}`} className="group block">
+          <Card className="overflow-hidden transition-shadow hover:shadow-md">
+            <div className="relative aspect-square overflow-hidden bg-stone-100">
+              <img src={product.image} alt={product.name} loading="lazy"
+                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              {product.badge && (
+                <span className="absolute left-3 top-3">
+                  <Badge tone="dark">{product.badge}</Badge>
+                </span>
+              )}
+              {product.stock <= 5 && (
+                <span className="absolute right-3 top-3">
+                  <Badge tone="soft">품절임박</Badge>
+                </span>
+              )}
+            </div>
+            <div className="p-4">
+              <p className="text-xs text-stone-400">{product.brand}</p>
+              <h3 className="mt-1 truncate text-sm font-medium text-stone-800">{product.name}</h3>
+              <div className="mt-2 flex items-baseline gap-2">
+                {discount > 0 && <span className="text-sm font-semibold text-red-600">{discount}%</span>}
+                <span className="text-base font-semibold">{won(product.price)}</span>
+                {discount > 0 && <span className="text-xs text-stone-400 line-through">{won(product.listPrice)}</span>}
+              </div>
+              <div className="mt-2"><Rating value={product.rating} count={product.reviews} /></div>
+            </div>
+          </Card>
+        </Link>
+      );
+    }
+
+    // ========================================
+    // 📄 Page: 홈
+    // ========================================
+
+    function HomePage() {
+      const best = PRODUCTS.filter((p) => p.badge === 'BEST');
+      const fresh = PRODUCTS.filter((p) => p.badge === 'NEW');
+
+      return (
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <section className="relative mt-6 overflow-hidden rounded-3xl">
+            <img src="images/hero-living.png" alt="린넨 소파와 오크 테이블이 놓인 밝은 거실"
+                 className="h-[340px] w-full object-cover sm:h-[440px]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-stone-900/55 via-stone-900/20 to-transparent" />
+            <div className="absolute inset-0 flex flex-col justify-center gap-4 p-8 sm:p-14">
+              <p className="text-sm tracking-[0.3em] text-white/80">NEW SEASON</p>
+              <h1 className="max-w-md text-3xl font-semibold leading-snug text-white sm:text-4xl">
+                햇살이 머무는 거실,<br />오래 두고 쓰는 가구로.
+              </h1>
+              <p className="max-w-sm text-sm text-white/80">
+                신상품 최대 22% 할인 · {won(FREE_SHIPPING_OVER)} 이상 무료 설치배송
+              </p>
+              <div className="flex gap-2">
+                <Link to="/products"><Button size="lg">전체 상품 보기</Button></Link>
+                <Link to="/products?c=sofa">
+                  <Button size="lg" variant="secondary">소파 구경하기</Button>
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-10">
+            <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+              {CATEGORIES.filter((c) => c.id !== 'all').map((c) => (
+                <Link key={c.id} to={`/products?c=${c.id}`}
+                      className="shrink-0 rounded-full bg-white px-5 py-2.5 text-sm ring-1 ring-stone-200 transition-colors hover:bg-stone-900 hover:text-white">
+                  {c.name}
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <Section title="이번 주 베스트" desc="가장 많이 담긴 가구" more="/products">
+            {best.map((p) => <ProductCard key={p.id} product={p} />)}
+          </Section>
+
+          <Section title="신상품" desc="이번 시즌 새로 들어온 가구" more="/products">
+            {fresh.map((p) => <ProductCard key={p.id} product={p} />)}
+          </Section>
+
+          <section className="mt-16 grid gap-4 sm:grid-cols-3">
+            {[
+              { icon: '🚚', title: '무료 설치배송', desc: `${won(FREE_SHIPPING_OVER)} 이상 구매 시` },
+              { icon: '🌿', title: 'E0 등급 자재', desc: '전 제품 친환경 마감' },
+              { icon: '↩️', title: '7일 교환', desc: '수령 후 단순 변심도 가능' },
+            ].map((f) => (
+              <Card key={f.title} className="p-6">
+                <p className="text-2xl" aria-hidden="true">{f.icon}</p>
+                <p className="mt-3 font-medium">{f.title}</p>
+                <p className="mt-1 text-sm text-stone-500">{f.desc}</p>
+              </Card>
+            ))}
+          </section>
+        </div>
+      );
+    }
+
+    function Section({ title, desc, more, children }) {
+      return (
+        <section className="mt-16">
+          <div className="mb-5 flex items-end justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">{title}</h2>
+              <p className="mt-1 text-sm text-stone-500">{desc}</p>
+            </div>
+            {more && <Link to={more} className="text-sm text-stone-500 underline-offset-4 hover:underline">더보기 →</Link>}
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{children}</div>
+        </section>
+      );
+    }
+
+    // ========================================
+    // 📄 Page: 상품 목록
+    // ========================================
+
+    function ProductListPage() {
+      const { path } = useRouter();
+      const initialCategory = useMemo(() => {
+        const q = path.split('?')[1] || '';
+        return new URLSearchParams(q).get('c') || 'all';
+      }, [path]);
+
+      const [category, setCategory] = useState(initialCategory);
+      const [keyword, setKeyword] = useState('');
+      const [sort, setSort] = useState('recommend');
+
+      useEffect(() => { setCategory(initialCategory); }, [initialCategory]);
+
+      const list = useMemo(() => {
+        let result = PRODUCTS.filter((p) => category === 'all' || p.category === category);
+        const k = keyword.trim().toLowerCase();
+        if (k) {
+          result = result.filter((p) =>
+            p.name.toLowerCase().includes(k) || p.brand.toLowerCase().includes(k) || p.summary.toLowerCase().includes(k));
+        }
+        const sorters = {
+          recommend: (a, b) => b.rating - a.rating,
+          low:       (a, b) => a.price - b.price,
+          high:      (a, b) => b.price - a.price,
+          review:    (a, b) => b.reviews - a.reviews,
+        };
+        return [...result].sort(sorters[sort]);
+      }, [category, keyword, sort]);
+
+      return (
+        <div className="mx-auto max-w-6xl px-4 pt-10 sm:px-6">
+          <h1 className="text-2xl font-semibold">
+            {CATEGORIES.find((c) => c.id === category)?.name ?? '전체'} 가구
+          </h1>
+          <p className="mt-1 text-sm text-stone-500">총 {list.length}개의 상품</p>
+
+          <div className="mt-6 flex flex-wrap items-end gap-3">
+            <div className="no-scrollbar flex flex-1 gap-2 overflow-x-auto">
+              {CATEGORIES.map((c) => (
+                <button key={c.id} onClick={() => setCategory(c.id)}
+                        aria-pressed={category === c.id}
+                        className={`shrink-0 rounded-full px-4 py-2 text-sm transition-colors
+                          ${category === c.id ? 'bg-stone-900 text-white' : 'bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-100'}`}>
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <Input className="flex-1" placeholder="상품명으로 검색 (예: 소파, 오크)"
+                   value={keyword} onChange={(e) => setKeyword(e.target.value)} aria-label="상품 검색" />
+            <Select className="sm:w-44" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="정렬">
+              <option value="recommend">추천순</option>
+              <option value="low">낮은 가격순</option>
+              <option value="high">높은 가격순</option>
+              <option value="review">리뷰 많은순</option>
+            </Select>
+          </div>
+
+          {list.length === 0 ? (
+            <Card className="mt-10 p-12 text-center">
+              <p className="text-3xl" aria-hidden="true">🔍</p>
+              <p className="mt-3 font-medium">조건에 맞는 상품이 없습니다</p>
+              <p className="mt-1 text-sm text-stone-500">검색어나 카테고리를 바꿔 보세요.</p>
+              <Button className="mt-5" variant="secondary"
+                      onClick={() => { setKeyword(''); setCategory('all'); }}>
+                필터 초기화
+              </Button>
+            </Card>
+          ) : (
+            <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {list.map((p) => <ProductCard key={p.id} product={p} />)}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Page: 상품 상세
+    // ========================================
+
+    function ProductDetailPage() {
+      const { id } = useParams();
+      const { dispatch } = useCart();
+      const { navigate } = useRouter();
+      const product = PRODUCTS.find((p) => p.id === id);
+
+      const [color, setColor] = useState(product ? product.colors[0] : '');
+      const [qty, setQty] = useState(1);
+      const [added, setAdded] = useState(false);
+
+      useEffect(() => {
+        if (product) { setColor(product.colors[0]); setQty(1); }
+      }, [id]);
+
+      if (!product) {
+        return (
+          <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+            <p className="text-3xl" aria-hidden="true">🪑</p>
+            <h1 className="mt-4 text-xl font-semibold">상품을 찾을 수 없습니다</h1>
+            <Link to="/products"><Button className="mt-6">상품 목록으로</Button></Link>
+          </div>
+        );
+      }
+
+      const discount = product.listPrice > product.price
+        ? Math.round((1 - product.price / product.listPrice) * 100) : 0;
+      const related = PRODUCTS.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
+
+      const addToCart = () => {
+        dispatch({ type: 'add', item: { id: product.id, name: product.name, price: product.price, image: product.image, color, qty } });
+        setAdded(true);
+      };
+
+      return (
+        <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6">
+          <nav className="text-xs text-stone-400" aria-label="경로">
+            <Link to="/" className="hover:text-stone-600">홈</Link>
+            <span className="mx-1.5">/</span>
+            <Link to={`/products?c=${product.category}`} className="hover:text-stone-600">
+              {CATEGORIES.find((c) => c.id === product.category)?.name}
+            </Link>
+            <span className="mx-1.5">/</span>
+            <span className="text-stone-600">{product.name}</span>
+          </nav>
+
+          <div className="mt-6 grid gap-10 lg:grid-cols-2">
+            <div className="self-start overflow-hidden rounded-2xl bg-stone-100">
+              <img src={product.image} alt={product.name} className="aspect-square w-full object-cover" />
+            </div>
+
+            <div>
+              <p className="text-sm text-stone-400">{product.brand}</p>
+              <h1 className="mt-1 text-2xl font-semibold">{product.name}</h1>
+              <div className="mt-2"><Rating value={product.rating} count={product.reviews} /></div>
+
+              <div className="mt-5 flex items-baseline gap-3">
+                {discount > 0 && <span className="text-2xl font-semibold text-red-600">{discount}%</span>}
+                <span className="text-2xl font-semibold">{won(product.price)}</span>
+                {discount > 0 && <span className="text-sm text-stone-400 line-through">{won(product.listPrice)}</span>}
+              </div>
+
+              <p className="mt-4 text-sm leading-relaxed text-stone-600">{product.summary}</p>
+
+              <div className="mt-6">
+                <p className="mb-2 text-sm text-stone-600">색상</p>
+                <div className="flex flex-wrap gap-2">
+                  {product.colors.map((c) => (
+                    <button key={c} onClick={() => setColor(c)} aria-pressed={color === c}
+                            className={`rounded-full px-4 py-2 text-sm transition-colors
+                              ${color === c ? 'bg-stone-900 text-white' : 'bg-white ring-1 ring-stone-300 hover:bg-stone-100'}`}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center gap-4">
+                <p className="text-sm text-stone-600">수량</p>
+                <div className="flex items-center rounded-full ring-1 ring-stone-300">
+                  <button onClick={() => setQty((q) => Math.max(1, q - 1))}
+                          className="px-4 py-2 text-stone-500 hover:text-stone-900" aria-label="수량 감소">−</button>
+                  <span className="w-10 text-center text-sm font-medium">{qty}</span>
+                  <button onClick={() => setQty((q) => Math.min(product.stock, q + 1))}
+                          className="px-4 py-2 text-stone-500 hover:text-stone-900" aria-label="수량 증가">+</button>
+                </div>
+                <span className="text-xs text-stone-400">재고 {product.stock}개</span>
+              </div>
+
+              <div className="mt-6 flex items-center justify-between rounded-xl bg-stone-100 px-5 py-4">
+                <span className="text-sm text-stone-600">총 결제금액</span>
+                <span className="text-xl font-semibold">{won(product.price * qty)}</span>
+              </div>
+
+              <div className="mt-4 flex gap-3">
+                <Button size="lg" variant="secondary" className="flex-1" onClick={addToCart}>장바구니</Button>
+                <Button size="lg" className="flex-1"
+                        onClick={() => { addToCart(); navigate('/cart'); }}>바로 구매</Button>
+              </div>
+
+              <dl className="mt-8 divide-y divide-stone-200 border-t border-stone-200 text-sm">
+                {[['사이즈', product.size], ['소재', product.material],
+                  ['배송', `설치배송 · ${won(FREE_SHIPPING_OVER)} 이상 무료`]].map(([k, v]) => (
+                  <div key={k} className="flex gap-6 py-3">
+                    <dt className="w-20 shrink-0 text-stone-400">{k}</dt>
+                    <dd className="text-stone-700">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </div>
+
+          {related.length > 0 && (
+            <Section title="함께 보면 좋은 가구" desc={`같은 ${CATEGORIES.find((c) => c.id === product.category)?.name} 카테고리`}>
+              {related.map((p) => <ProductCard key={p.id} product={p} />)}
+            </Section>
+          )}
+
+          <Modal isOpen={added} onClose={() => setAdded(false)} title="장바구니에 담았습니다">
+            <div className="flex gap-4">
+              <img src={product.image} alt="" className="h-20 w-20 rounded-lg object-cover" />
+              <div className="text-sm">
+                <p className="font-medium">{product.name}</p>
+                <p className="mt-1 text-stone-500">{color} · {qty}개</p>
+                <p className="mt-1 font-semibold">{won(product.price * qty)}</p>
+              </div>
+            </div>
+            <div className="mt-6 flex gap-2">
+              <Button variant="secondary" className="flex-1" onClick={() => setAdded(false)}>계속 쇼핑</Button>
+              <Button className="flex-1" onClick={() => { setAdded(false); navigate('/cart'); }}>장바구니 보기</Button>
+            </div>
+          </Modal>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Page: 장바구니
+    // ========================================
+
+    function CartPage() {
+      const { items, dispatch, subtotal, shipping, total, count } = useCart();
+      const { user } = useAuth();
+      const { navigate } = useRouter();
+      const query = useQuery();
+      // 결제에 실패하면 서버가 #/cart?failed=1&message=... 로 되돌려 보낸다
+      const [error, setError] = useState(query.get('failed') ? (query.get('message') || '결제가 취소되었습니다.') : '');
+
+      // 로그인부터 시키고 결제 페이지로 보낸다 (주문 생성·결제창은 /checkout 이 담당)
+      const goCheckout = () => navigate(user ? '/checkout' : '/login?next=/checkout');
+
+      if (items.length === 0) {
+        return (
+          <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+            <p className="text-4xl" aria-hidden="true">🛒</p>
+            <h1 className="mt-4 text-xl font-semibold">장바구니가 비어 있습니다</h1>
+            <p className="mt-2 text-sm text-stone-500">마음에 드는 가구를 담아 보세요.</p>
+            {error && (
+              <p role="alert" className="mx-auto mt-5 max-w-sm rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+            )}
+            <Link to="/products"><Button className="mt-6" size="lg">상품 보러 가기</Button></Link>
+          </div>
+        );
+      }
+
+      return (
+        <div className="mx-auto max-w-5xl px-4 pt-10 sm:px-6">
+          <div className="flex items-end justify-between">
+            <h1 className="text-2xl font-semibold">장바구니 <span className="text-stone-400">({count})</span></h1>
+            <Button variant="ghost" size="sm" onClick={() => dispatch({ type: 'clear' })}>전체 비우기</Button>
+          </div>
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
+            <div className="space-y-3">
+              {items.map((item) => (
+                <Card key={item.key} className="flex gap-4 p-4">
+                  <Link to={`/product/${item.id}`} className="shrink-0">
+                    <img src={item.image} alt={item.name} className="h-24 w-24 rounded-lg object-cover" />
+                  </Link>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <Link to={`/product/${item.id}`} className="block truncate font-medium hover:underline">{item.name}</Link>
+                        <p className="mt-0.5 text-sm text-stone-500">{item.color}</p>
+                      </div>
+                      <button onClick={() => dispatch({ type: 'remove', key: item.key })}
+                              className="shrink-0 text-stone-400 hover:text-red-600" aria-label={`${item.name} 삭제`}>✕</button>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center rounded-full ring-1 ring-stone-300">
+                        <button onClick={() => dispatch({ type: 'qty', key: item.key, qty: item.qty - 1 })}
+                                className="px-3 py-1.5 text-stone-500 hover:text-stone-900" aria-label="수량 감소">−</button>
+                        <span className="w-8 text-center text-sm">{item.qty}</span>
+                        <button onClick={() => dispatch({ type: 'qty', key: item.key, qty: item.qty + 1 })}
+                                className="px-3 py-1.5 text-stone-500 hover:text-stone-900" aria-label="수량 증가">+</button>
+                      </div>
+                      <span className="font-semibold">{won(item.price * item.qty)}</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+
+            <Card className="h-fit p-6 lg:sticky lg:top-24">
+              <h2 className="font-semibold">결제 정보</h2>
+              <dl className="mt-4 space-y-2.5 text-sm">
+                <div className="flex justify-between"><dt className="text-stone-500">상품 금액</dt><dd>{won(subtotal)}</dd></div>
+                <div className="flex justify-between">
+                  <dt className="text-stone-500">배송비</dt>
+                  <dd>{shipping === 0 ? <span className="text-emerald-600">무료</span> : won(shipping)}</dd>
+                </div>
+              </dl>
+              {shipping > 0 && (
+                <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {won(FREE_SHIPPING_OVER - subtotal)} 더 담으면 배송비가 무료예요.
+                </p>
+              )}
+              <div className="mt-4 flex items-baseline justify-between border-t border-stone-200 pt-4">
+                <span className="text-sm text-stone-600">총 결제금액</span>
+                <span className="text-xl font-semibold">{won(total)}</span>
+              </div>
+              {error && (
+                <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-700">{error}</p>
+              )}
+
+              <Button size="lg" className="mt-5 w-full" onClick={goCheckout}>
+                {user ? '주문하기' : '로그인하고 주문하기'}
+              </Button>
+              {!user && (
+                <p className="mt-2 text-center text-xs text-stone-500">주문 내역을 남기려면 로그인이 필요해요.</p>
+              )}
+              <Link to="/products">
+                <Button size="md" variant="ghost" className="mt-2 w-full">계속 쇼핑하기</Button>
+              </Link>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Page: 결제 (토스페이먼츠 결제위젯)
+    // ========================================
+
+    // 결제는 3단계다.
+    //  ① 서버에 주문서를 만든다 → 서버가 가격을 계산해 orderId 와 금액을 돌려준다
+    //  ② 그 금액으로 토스 결제위젯을 그린다 (카드번호는 토스만 본다. 우리 서버는 모른다)
+    //  ③ 결제가 끝나면 토스가 /api/payments/success 로 되돌려 보내고, 서버가 최종 승인한다
+    function CheckoutPage() {
+      const { items } = useCart();
+      const { user, ready } = useAuth();
+      const { navigate } = useRouter();
+      const [order, setOrder] = useState(null);
+      const [widgets, setWidgets] = useState(null);
+      const [error, setError] = useState('');
+      const [paying, setPaying] = useState(false);
+      const startedRef = useRef(false); // 주문서가 두 번 만들어지지 않도록
+
+      useEffect(() => {
+        if (!ready || !user || items.length === 0 || startedRef.current) return;
+        startedRef.current = true;
+
+        (async () => {
+          try {
+            const { data: config } = await api('/config', { auth: false });
+            if (!config.paymentEnabled) throw new Error('서버에 토스 키가 설정되어 있지 않습니다. .env 를 확인해주세요.');
+
+            const { data: created } = await api('/orders', {
+              method: 'POST',
+              body: { items: items.map((i) => ({ id: i.id, color: i.color, qty: i.qty })) },
+            });
+            setOrder(created);
+
+            const w = TossPayments(config.tossClientKey).widgets({ customerKey: created.customerKey });
+            await w.setAmount({ currency: 'KRW', value: created.amount });
+            await Promise.all([
+              w.renderPaymentMethods({ selector: '#toss-payment-method', variantKey: 'DEFAULT' }),
+              w.renderAgreement({ selector: '#toss-agreement', variantKey: 'AGREEMENT' }),
+            ]);
+            setWidgets(w);
+          } catch (err) {
+            setError(err.message || '결제 준비에 실패했습니다.');
+          }
+        })();
+      }, [ready, user, items.length]);
+
+      async function handlePay() {
+        if (!widgets || !order) return;
+        setPaying(true);
+        setError('');
+        try {
+          await widgets.requestPayment({
+            orderId: order.orderId,
+            orderName: order.orderName,
+            successUrl: `${window.location.origin}/api/payments/success`,
+            failUrl: `${window.location.origin}/api/payments/fail`,
+            customerEmail: order.customerEmail,
+            customerName: order.customerName,
+          });
+        } catch (err) {
+          setError(err.message || '결제를 시작하지 못했습니다.');
+          setPaying(false);
+        }
+      }
+
+      if (!ready) return <p className="py-24 text-center text-sm text-stone-400">불러오는 중…</p>;
+      if (!user) return <LoginRequired next="/checkout" />;
+
+      if (items.length === 0) {
+        return (
+          <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+            <p className="text-4xl" aria-hidden="true">🛒</p>
+            <h1 className="mt-4 text-xl font-semibold">주문할 상품이 없습니다</h1>
+            <Link to="/products"><Button className="mt-6" size="lg">상품 보러 가기</Button></Link>
+          </div>
+        );
+      }
+
+      return (
+        <div className="mx-auto max-w-5xl px-4 pt-10 sm:px-6">
+          <h1 className="text-2xl font-semibold">주문 · 결제</h1>
+          <p className="mt-1 text-sm text-stone-500">{user.name}님 · {user.email}</p>
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
+            <div>
+              {/* 토스 결제위젯이 이 두 칸을 채운다 */}
+              <Card className="overflow-hidden p-2">
+                <div id="toss-payment-method" />
+                <div id="toss-agreement" />
+              </Card>
+              {!widgets && !error && (
+                <p className="py-10 text-center text-sm text-stone-400">결제 수단을 불러오는 중…</p>
+              )}
+            </div>
+
+            <Card className="h-fit p-6 lg:sticky lg:top-24">
+              <h2 className="font-semibold">주문 내역</h2>
+              <ul className="mt-4 space-y-2 text-sm">
+                {(order ? order.items : items).map((it, idx) => (
+                  <li key={idx} className="flex justify-between gap-3">
+                    <span className="min-w-0 truncate text-stone-600">{it.name} × {it.qty}</span>
+                    <span className="shrink-0">{won(it.price * it.qty)}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {order && (
+                <dl className="mt-4 space-y-2.5 border-t border-stone-200 pt-4 text-sm">
+                  <div className="flex justify-between"><dt className="text-stone-500">상품 금액</dt><dd>{won(order.subtotal)}</dd></div>
+                  <div className="flex justify-between">
+                    <dt className="text-stone-500">배송비</dt>
+                    <dd>{order.shipping === 0 ? <span className="text-emerald-600">무료</span> : won(order.shipping)}</dd>
+                  </div>
+                </dl>
+              )}
+
+              <div className="mt-4 flex items-baseline justify-between border-t border-stone-200 pt-4">
+                <span className="text-sm text-stone-600">총 결제금액</span>
+                <span className="text-xl font-semibold">{order ? won(order.amount) : '—'}</span>
+              </div>
+              {order && <p className="mt-2 text-xs text-stone-400">주문번호 {order.orderId}</p>}
+
+              {error && (
+                <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-700">{error}</p>
+              )}
+
+              <Button size="lg" className="mt-5 w-full" onClick={handlePay} disabled={!widgets || paying}>
+                {paying ? '결제창을 여는 중…' : order ? `${won(order.amount)} 결제하기` : '준비 중…'}
+              </Button>
+              <Button size="md" variant="ghost" className="mt-2 w-full" onClick={() => navigate('/cart')}>
+                장바구니로 돌아가기
+              </Button>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Page: 로그인 · 회원가입
+    // ========================================
+
+    function AuthPage({ mode }) {
+      const isSignup = mode === 'signup';
+      const { login, signup, user } = useAuth();
+      const { navigate } = useRouter();
+      const query = useQuery();
+      const next = query.get('next') || '/mypage';
+
+      const [form, setForm] = useState({ email: '', password: '', name: '' });
+      const [error, setError] = useState('');
+      const [busy, setBusy] = useState(false);
+
+      // 이미 로그인한 사람이 주소로 들어오면 돌려보낸다
+      useEffect(() => { if (user) navigate(next); }, [user]);
+
+      const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+      async function handleSubmit(e) {
+        e.preventDefault();
+        setError('');
+        if (isSignup && form.password.length < 8) return setError('비밀번호는 8자 이상이어야 합니다.');
+        setBusy(true);
+        try {
+          if (isSignup) await signup(form.email, form.password, form.name);
+          else await login(form.email, form.password);
+          navigate(next);
+        } catch (err) {
+          setError(err.message || '잠시 후 다시 시도해주세요.');
+          setBusy(false);
+        }
+      }
+
+      return (
+        <div className="mx-auto max-w-md px-4 pt-16 sm:px-6">
+          <h1 className="text-center text-2xl font-semibold">{isSignup ? '회원가입' : '로그인'}</h1>
+          <p className="mt-2 text-center text-sm text-stone-500">
+            {isSignup ? '이메일과 비밀번호만 있으면 됩니다.' : 'MOOM 계정으로 주문 내역을 확인하세요.'}
+          </p>
+
+          <Card className="mt-8 p-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {isSignup && (
+                <Input label="이름" value={form.name} onChange={set('name')}
+                       placeholder="무움" autoComplete="name" maxLength={20} />
+              )}
+              <Input label="이메일" type="email" value={form.email} onChange={set('email')}
+                     placeholder="you@example.com" autoComplete="email" required />
+              <Input label="비밀번호" type="password" value={form.password} onChange={set('password')}
+                     placeholder={isSignup ? '8자 이상' : '••••••••'}
+                     autoComplete={isSignup ? 'new-password' : 'current-password'} required />
+
+              {error && (
+                <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+              )}
+
+              <Button type="submit" size="lg" className="w-full" disabled={busy}>
+                {busy ? '처리 중…' : isSignup ? '가입하고 시작하기' : '로그인'}
+              </Button>
+            </form>
+          </Card>
+
+          <p className="mt-5 text-center text-sm text-stone-500">
+            {isSignup ? '이미 계정이 있으신가요? ' : '아직 계정이 없으신가요? '}
+            <Link to={`${isSignup ? '/login' : '/signup'}?next=${encodeURIComponent(next)}`}
+                  className="font-medium text-stone-900 underline underline-offset-4">
+              {isSignup ? '로그인' : '회원가입'}
+            </Link>
+          </p>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Page: 마이페이지 (주문 · 결제 내역)
+    // ========================================
+
+    function OrderStatusBadge({ status }) {
+      const s = ORDER_STATUS[status] || ORDER_STATUS.READY;
+      return <Badge tone={s.tone}>{s.label}</Badge>;
+    }
+
+    function LoginRequired({ next }) {
+      return (
+        <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+          <p className="text-4xl" aria-hidden="true">🔒</p>
+          <h1 className="mt-4 text-xl font-semibold">로그인이 필요합니다</h1>
+          <p className="mt-2 text-sm text-stone-500">주문 내역은 본인만 볼 수 있어요.</p>
+          <Link to={`/login?next=${encodeURIComponent(next)}`}><Button className="mt-6" size="lg">로그인하기</Button></Link>
+        </div>
+      );
+    }
+
+    function MyPage() {
+      const { user, ready } = useAuth();
+      const [state, setState] = useState({ loading: true, orders: [], summary: null, error: '' });
+
+      useEffect(() => {
+        if (!ready || !user) return;
+        api('/orders')
+          .then((r) => setState({ loading: false, orders: r.data, summary: r.summary, error: '' }))
+          .catch((err) => setState({ loading: false, orders: [], summary: null, error: err.message }));
+      }, [ready, user]);
+
+      if (!ready) return <p className="py-24 text-center text-sm text-stone-400">불러오는 중…</p>;
+      if (!user) return <LoginRequired next="/mypage" />;
+
+      return (
+        <div className="mx-auto max-w-4xl px-4 pt-10 sm:px-6">
+          <h1 className="text-2xl font-semibold">마이페이지</h1>
+          <p className="mt-1 text-sm text-stone-500">{user.name}님 · {user.email}</p>
+
+          {state.summary && (
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Card className="p-5"><p className="text-xs text-stone-400">전체 주문</p><p className="mt-1 text-xl font-semibold">{state.summary.count}건</p></Card>
+              <Card className="p-5"><p className="text-xs text-stone-400">결제 완료</p><p className="mt-1 text-xl font-semibold">{state.summary.paidCount}건</p></Card>
+              <Card className="col-span-2 p-5 sm:col-span-1"><p className="text-xs text-stone-400">결제 금액 합계</p><p className="mt-1 text-xl font-semibold">{won(state.summary.paidTotal)}</p></Card>
+            </div>
+          )}
+
+          <h2 className="mt-10 font-semibold">결제 내역</h2>
+
+          {state.loading && <p className="py-10 text-center text-sm text-stone-400">불러오는 중…</p>}
+          {state.error && <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
+
+          {!state.loading && !state.error && state.orders.length === 0 && (
+            <Card className="mt-4 p-10 text-center">
+              <p className="text-sm text-stone-500">아직 주문 내역이 없습니다.</p>
+              <Link to="/products"><Button className="mt-5">상품 보러 가기</Button></Link>
+            </Card>
+          )}
+
+          <div className="mt-4 space-y-3">
+            {state.orders.map((o) => (
+              <Link key={o.orderId} to={`/orders/${o.orderId}`} className="block">
+                <Card className="p-5 transition-shadow hover:shadow-md">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <OrderStatusBadge status={o.status} />
+                        <span className="text-xs text-stone-400">{o.createdAt.slice(0, 10)}</span>
+                      </div>
+                      <p className="mt-2 truncate font-medium">{o.orderName}</p>
+                      <p className="mt-0.5 text-xs text-stone-400">주문번호 {o.orderId}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">{won(o.amount)}</p>
+                      {o.payment && <p className="mt-0.5 text-xs text-stone-400">{o.payment.method}</p>}
+                    </div>
+                  </div>
+                  <div className="mt-4 flex gap-2 border-t border-stone-100 pt-4">
+                    {o.items.slice(0, 4).map((it, idx) => (
+                      <img key={idx} src={it.image} alt={it.name} className="h-12 w-12 rounded-lg object-cover" />
+                    ))}
+                    {o.items.length > 4 && <span className="self-center text-xs text-stone-400">+{o.items.length - 4}</span>}
+                  </div>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Page: 주문 상세 (결제 직후 도착하는 화면)
+    // ========================================
+
+    function OrderDetailPage() {
+      const { orderId } = useParams();
+      const { user, ready } = useAuth();
+      const { dispatch } = useCart();
+      const query = useQuery();
+      const justPaid = query.get('paid') === '1';
+      const [state, setState] = useState({ loading: true, order: null, error: '' });
+
+      useEffect(() => {
+        if (!ready || !user || !orderId) return;
+        api(`/orders/${orderId}`)
+          .then((r) => {
+            setState({ loading: false, order: r.data, error: '' });
+            // 결제가 끝난 주문이면 장바구니를 비운다
+            if (r.data.status === 'PAID' && justPaid) dispatch({ type: 'clear' });
+          })
+          .catch((err) => setState({ loading: false, order: null, error: err.message }));
+      }, [ready, user, orderId]);
+
+      if (!ready) return <p className="py-24 text-center text-sm text-stone-400">불러오는 중…</p>;
+      if (!user) return <LoginRequired next={`/orders/${orderId}`} />;
+      if (state.loading) return <p className="py-24 text-center text-sm text-stone-400">주문을 불러오는 중…</p>;
+
+      if (state.error || !state.order) {
+        return (
+          <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+            <p className="text-4xl" aria-hidden="true">🧾</p>
+            <h1 className="mt-4 text-xl font-semibold">{state.error || '주문을 찾을 수 없습니다'}</h1>
+            <Link to="/mypage"><Button className="mt-6">마이페이지로</Button></Link>
+          </div>
+        );
+      }
+
+      const o = state.order;
+      return (
+        <div className="mx-auto max-w-3xl px-4 pt-10 sm:px-6">
+          {o.status === 'PAID' && justPaid && (
+            <Card className="mb-6 bg-emerald-50 p-6 text-center ring-emerald-600/10">
+              <p className="text-3xl" aria-hidden="true">🎉</p>
+              <h1 className="mt-2 text-xl font-semibold text-emerald-900">결제가 완료되었습니다</h1>
+              <p className="mt-1 text-sm text-emerald-800">{won(o.amount)} 결제 · 영업일 기준 2–5일 내 설치 배송됩니다.</p>
+            </Card>
+          )}
+
+          <div className="flex items-center gap-2">
+            <OrderStatusBadge status={o.status} />
+            <span className="text-xs text-stone-400">{o.createdAt.slice(0, 10)}</span>
+          </div>
+          <h2 className="mt-2 text-2xl font-semibold">{o.orderName}</h2>
+          <p className="mt-1 text-sm text-stone-400">주문번호 {o.orderId}</p>
+
+          {o.failReason && (
+            <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+              {o.failReason.message} <span className="text-red-400">({o.failReason.code})</span>
+            </p>
+          )}
+
+          <Card className="mt-6 divide-y divide-stone-100">
+            {o.items.map((it, idx) => (
+              <div key={idx} className="flex gap-4 p-4">
+                <img src={it.image} alt={it.name} className="h-20 w-20 rounded-lg object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{it.name}</p>
+                  <p className="mt-0.5 text-sm text-stone-500">{it.color} · {it.qty}개</p>
+                </div>
+                <span className="self-center font-semibold">{won(it.price * it.qty)}</span>
+              </div>
+            ))}
+          </Card>
+
+          <Card className="mt-4 p-6">
+            <dl className="space-y-2.5 text-sm">
+              <div className="flex justify-between"><dt className="text-stone-500">상품 금액</dt><dd>{won(o.subtotal)}</dd></div>
+              <div className="flex justify-between">
+                <dt className="text-stone-500">배송비</dt>
+                <dd>{o.shipping === 0 ? <span className="text-emerald-600">무료</span> : won(o.shipping)}</dd>
+              </div>
+              {o.payment && (
+                <>
+                  <div className="flex justify-between"><dt className="text-stone-500">결제 수단</dt><dd>{o.payment.method}{o.payment.cardNumber ? ` · ${o.payment.cardNumber}` : ''}</dd></div>
+                  <div className="flex justify-between"><dt className="text-stone-500">결제 일시</dt><dd>{String(o.paidAt || '').replace('T', ' ').slice(0, 16)}</dd></div>
+                </>
+              )}
+            </dl>
+            <div className="mt-4 flex items-baseline justify-between border-t border-stone-200 pt-4">
+              <span className="text-sm text-stone-600">총 결제금액</span>
+              <span className="text-xl font-semibold">{won(o.amount)}</span>
+            </div>
+            {o.payment && o.payment.receiptUrl && (
+              <a href={o.payment.receiptUrl} target="_blank" rel="noopener noreferrer">
+                <Button variant="secondary" className="mt-5 w-full">영수증 보기</Button>
+              </a>
+            )}
+          </Card>
+
+          <Link to="/mypage"><Button variant="ghost" className="mt-4 w-full">마이페이지로</Button></Link>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App
+    // ========================================
+
+    function NotFound() {
+      return (
+        <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+          <p className="text-4xl" aria-hidden="true">🧭</p>
+          <h1 className="mt-4 text-xl font-semibold">페이지를 찾을 수 없습니다</h1>
+          <Link to="/"><Button className="mt-6">홈으로</Button></Link>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <Router>
+          <AuthProvider>
+            <CartProvider>
+              <div className="flex min-h-screen flex-col">
+                <Header />
+                <main className="flex-1 pb-16">
+                  <Routes fallback={<NotFound />}>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/products" element={<ProductListPage />} />
+                    <Route path="/product/:id" element={<ProductDetailPage />} />
+                    <Route path="/cart" element={<CartPage />} />
+                    <Route path="/checkout" element={<CheckoutPage />} />
+                    <Route path="/login" element={<AuthPage mode="login" />} />
+                    <Route path="/signup" element={<AuthPage mode="signup" />} />
+                    <Route path="/mypage" element={<MyPage />} />
+                    <Route path="/orders/:orderId" element={<OrderDetailPage />} />
+                  </Routes>
+                </main>
+                <Footer />
+              </div>
+            </CartProvider>
+          </AuthProvider>
+        </Router>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
