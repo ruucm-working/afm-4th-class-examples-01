@@ -1,0 +1,658 @@
+{
+  "cycleId": "20260921-1910",
+  "agent": "oc-keeper",
+  "ts": "2026-09-21T10:10:00.000Z",
+  "kst": "2026-09-21 19:10:00",
+  "venueUrl": "http://127.0.0.1:6104",
+  "dryRun": false,
+  "replay": {
+    "asOf": "2026-09-21T10:10:00.000Z",
+    "venueDb": "/home/openclaw/.openclaw/workspace-harbor-ai-factory-manager/afm-4th/_operating/league-agents/league/venues/oc-keeper/db.json",
+    "note": "재현 회차 — 시세·지표·맥락·뉴스·장부를 이 시각 기준으로 되돌려 만든 스냅샷"
+  },
+  "wallet": {
+    "startCash": 10000000,
+    "cash": 5859380.64,
+    "holdingValue": 4251719.64,
+    "total": 10111100.28,
+    "profit": 111100.28,
+    "profitRate": 0.01111,
+    "positions": [
+      {
+        "market": "KRW-BTC",
+        "qty": 0.01467184,
+        "price": 114600000,
+        "value": 1681392.86,
+        "avgPrice": 111139391.37,
+        "pnl": 50773.5,
+        "pnlRate": 0.031138
+      },
+      {
+        "market": "KRW-ETH",
+        "qty": 0.30143805,
+        "price": 3690000,
+        "value": 1112306.4,
+        "avgPrice": 3616000,
+        "pnl": 22306.42,
+        "pnlRate": 0.020465
+      },
+      {
+        "market": "KRW-XRP",
+        "qty": 345.89571502,
+        "price": 1996,
+        "value": 690407.85,
+        "avgPrice": 1937,
+        "pnl": 20407.85,
+        "pnlRate": 0.030459
+      },
+      {
+        "market": "KRW-SOL",
+        "qty": 4.89236791,
+        "price": 156900,
+        "value": 767612.53,
+        "avgPrice": 153300,
+        "pnl": 17612.52,
+        "pnlRate": 0.023483
+      }
+    ],
+    "orderCount": 5,
+    "priceError": null,
+    "replay": true,
+    "asOf": "2026-09-21T10:10:00.000Z"
+  },
+  "market": [
+    {
+      "market": "KRW-BTC",
+      "price": 114600000,
+      "changeKstDay": 0.030983482673000218,
+      "ret1h": -0.0000349027957139425,
+      "ret4h": 0.029825396968035767,
+      "ret24h": 0.04130699474803268,
+      "ret7d": 0.0843544495434545,
+      "ret30d": 0.0736771098785789,
+      "ema20_1h": 111799840.88,
+      "ema50_1h": 110904685.17,
+      "vsEma20": 0.025046181620180574,
+      "vsEma50": 0.03331973596588922,
+      "ema20Slope6h": 0.008740046434079884,
+      "rsi14_1h": 81.25675345812962,
+      "atrPct14_1h": 0.006027268336648728,
+      "dailyVol20": 0.019142572508290233,
+      "fromHigh20d": 0.019572953736654908,
+      "fromLow20d": 0.12352941176470589,
+      "volumeRatio24h": 1.5270218689368305,
+      "fromHigh52w": null,
+      "trend": "up",
+      "candlesAsOf": "2026-09-21T19:00:00"
+    },
+    {
+      "market": "KRW-ETH",
+      "price": 3690000,
+      "changeKstDay": 0.019618679193147193,
+      "ret1h": 0.0010851871947910041,
+      "ret4h": 0.01680903830256275,
+      "ret24h": 0.04680851063829783,
+      "ret7d": 0.08625257580217838,
+      "ret30d": 0.09107037256061501,
+      "ema20_1h": 3627237.13,
+      "ema50_1h": 3589678.45,
+      "vsEma20": 0.017303216982828662,
+      "vsEma50": 0.02794722501171032,
+      "ema20Slope6h": 0.006877284357280411,
+      "rsi14_1h": 69.25194654097454,
+      "atrPct14_1h": 0.008567933640540964,
+      "dailyVol20": 0.02176797814418196,
+      "fromHigh20d": 0.014572449821281364,
+      "fromLow20d": 0.14206128133704743,
+      "volumeRatio24h": 1.5478942560825066,
+      "fromHigh52w": null,
+      "trend": "up",
+      "candlesAsOf": "2026-09-21T19:00:00"
+    },
+    {
+      "market": "KRW-XRP",
+      "price": 1996,
+      "changeKstDay": 0.03419689119170988,
+      "ret1h": 0,
+      "ret4h": 0.020449897750511203,
+      "ret24h": 0.05776364599894013,
+      "ret7d": 0.03850156087408951,
+      "ret30d": -0.043144774688398835,
+      "ema20_1h": 1947.43,
+      "ema50_1h": 1924.81,
+      "vsEma20": 0.024941835937535073,
+      "vsEma50": 0.0369836005878863,
+      "ema20Slope6h": 0.013487020029217867,
+      "rsi14_1h": 73.47028133453638,
+      "atrPct14_1h": 0.010086298025666888,
+      "dailyVol20": 0.03622091912969103,
+      "fromHigh20d": -0.012370113805047045,
+      "fromLow20d": 0.1645274212368728,
+      "volumeRatio24h": 0.94177452677967,
+      "fromHigh52w": null,
+      "trend": "up",
+      "candlesAsOf": "2026-09-21T19:00:00"
+    },
+    {
+      "market": "KRW-SOL",
+      "price": 156900,
+      "changeKstDay": 0.03155818540433919,
+      "ret1h": 0,
+      "ret4h": 0.026160889470242088,
+      "ret24h": 0.05870445344129549,
+      "ret7d": 0.13367052023121384,
+      "ret30d": 0.1977099236641222,
+      "ema20_1h": 152743.43,
+      "ema50_1h": 151092.3,
+      "vsEma20": 0.027212733405856948,
+      "vsEma50": 0.038438095101220426,
+      "ema20Slope6h": 0.012011857837646911,
+      "rsi14_1h": 73.19570063220783,
+      "atrPct14_1h": 0.010436229092280548,
+      "dailyVol20": 0.031938960767023815,
+      "fromHigh20d": 0.0012763241863433805,
+      "fromLow20d": 0.1995412844036697,
+      "volumeRatio24h": 1.316430334619039,
+      "fromHigh52w": null,
+      "trend": "up",
+      "candlesAsOf": "2026-09-21T19:00:00"
+    },
+    {
+      "market": "KRW-DOGE",
+      "price": 125,
+      "changeKstDay": 0.050420168067226934,
+      "ret1h": 0.008064516129032251,
+      "ret4h": 0.03305785123966931,
+      "ret24h": 0.06837606837606836,
+      "ret7d": 0.09649122807017552,
+      "ret30d": -0.0234375,
+      "ema20_1h": 121.06,
+      "ema50_1h": 119.65,
+      "vsEma20": 0.0325495599335508,
+      "vsEma50": 0.0446968806601169,
+      "ema20Slope6h": 0.015210762248293319,
+      "rsi14_1h": 67.61095624191017,
+      "atrPct14_1h": 0.017508352829280847,
+      "dailyVol20": 0.030016796824917813,
+      "fromHigh20d": -0.038461538461538436,
+      "fromLow20d": 0.16822429906542058,
+      "volumeRatio24h": 1.8939726606921046,
+      "fromHigh52w": null,
+      "trend": "up",
+      "candlesAsOf": "2026-09-21T19:00:00"
+    }
+  ],
+  "context": {
+    "fearGreed": {
+      "name": "fear_greed",
+      "ok": true,
+      "ms": 0,
+      "data": [
+        {
+          "value": 70,
+          "label": "Greed",
+          "date": "2026-09-21"
+        },
+        {
+          "value": 71,
+          "label": "Greed",
+          "date": "2026-09-20"
+        },
+        {
+          "value": 71,
+          "label": "Greed",
+          "date": "2026-09-19"
+        },
+        {
+          "value": 56,
+          "label": "Greed",
+          "date": "2026-09-18"
+        },
+        {
+          "value": 50,
+          "label": "Neutral",
+          "date": "2026-09-17"
+        },
+        {
+          "value": 51,
+          "label": "Neutral",
+          "date": "2026-09-16"
+        },
+        {
+          "value": 69,
+          "label": "Greed",
+          "date": "2026-09-15"
+        }
+      ]
+    },
+    "usdkrw": {
+      "name": "usdkrw",
+      "ok": true,
+      "ms": 0,
+      "data": {
+        "rate": 1372.18,
+        "date": "2026-09-21",
+        "source": "frankfurter(ECB)"
+      }
+    },
+    "binance": {
+      "name": "binance",
+      "ok": true,
+      "ms": 1,
+      "data": {
+        "BTCUSDT": {
+          "markPrice": 84592.4,
+          "fundingRate": 0.0001
+        },
+        "ETHUSDT": {
+          "markPrice": 2720.92,
+          "fundingRate": 0.0000866
+        },
+        "note": "재현 — 마크가 대신 1분봉 종가, 펀딩비는 그 시각 직전 정산값"
+      }
+    },
+    "kimchiPremium": {
+      "BTC": -0.01271580205402123,
+      "ETH": -0.01167562110016751,
+      "note": "업비트 원화가 ÷ (바이낸스 USDT 1분봉 종가 × USD/KRW) − 1 · 환율은 그 날짜의 ECB 참고치"
+    },
+    "news": [
+      {
+        "name": "news:GoogleNews(en) bitcoin",
+        "ok": true,
+        "ms": 0,
+        "items": [
+          {
+            "source": "GoogleNews(en) bitcoin",
+            "title": "What Is Driving Bitcoin Higher Right Now - Yahoo Finance",
+            "link": "https://news.google.com/rss/articles/CBMilgFBVV95cUxPQWJDZEdKaXNiUjUwdGppbGVXWDB3TVJ5OTdhUlNheHVaSTdSYWRScFZ2NmxrSTNUM0VYdHk2cjQxUEhncTY1MEZWMFloLUxzY1M2ZmltWjRJVEp5OTdDc29DdHpBSUNFQVNvTHhxUnVTOWpzN1ZTdGthaF9UZDZMWFo1ZVRLcmh0ekZ6X3prZVRGbGc4TkE?oc=5",
+            "publishedAt": "2026-09-21T09:53:00.000Z"
+          },
+          {
+            "source": "GoogleNews(en) bitcoin",
+            "title": "Bitcoin Rally 'Makes No Sense' as Tokenized Stocks Threaten Its Store of Value Case: Peter Schiff - Yahoo Finance",
+            "link": "https://news.google.com/rss/articles/CBMimAFBVV95cUxPOXNKS0VZUG5CUGczbU1Ha2VUOHV0YXpnZVAzWVdQRTVRaFlDUVh5TnYtRktlMnpKS1NDd0ZXejVUXy1Ia0wtTTlLU1ZNUW1adFhIUjlzRlN1RU9EaWZLTVlUbzBWQ1FWVTZ2RWFoVHVpMXZLbkk5ZVBmV0dUa2VfYVFHX081WXVkVnV5d0ZROWxaMko0ZlRRaw?oc=5",
+            "publishedAt": "2026-09-21T09:26:56.000Z"
+          },
+          {
+            "source": "GoogleNews(en) bitcoin",
+            "title": "Bitcoin Rally: What Could Go Wrong? - Moomoo",
+            "link": "https://news.google.com/rss/articles/CBMikAFBVV95cUxPLU55ODhkWGVHRlVFb213WU1YU3JfWWRLY3ZBU2JSV2xfYm1qbU9ZcnVMNlM5ZXFORWFRZXBadnAwVTRRbk05alliMGloUUlCMXNJc0dyclRGNURVV3h3dWgzX3RGWHowTXdDb0psMTRzVjVUek51RnEzUUZXNjVpdGJaeEFjWG9QRWx6MXV3X2s?oc=5",
+            "publishedAt": "2026-09-21T07:00:00.000Z"
+          },
+          {
+            "source": "GoogleNews(en) bitcoin",
+            "title": "BCH Price Bitcoin Cash TA BCH Technical Analysis - Altcoin Buzz",
+            "link": "https://news.google.com/rss/articles/CBMipgFBVV95cUxQeml5WFRIUmlfbWpaR0h1dTdUVWVoREw1TFpyeEpMNzI3Mldzd0pRaFFpTy1lZm05eVgzQWJiMTB3X3otTTV0b3RTZ2twYXlXZTdWRTBuTG9DbXJRcDAxYUFSd3VEWnh4bVdPVzhxNENNTnVyeEUyaVN1RXBLcFExaXdqRmw3TnU4ckZWSUxoSHp0QzZWbG5xZEx5anVrOHVTS0E1QTB3?oc=5",
+            "publishedAt": "2026-09-21T06:57:37.000Z"
+          },
+          {
+            "source": "GoogleNews(en) bitcoin",
+            "title": "Bitcoin Stays Stronger on ETF Inflows, Regulatory Progress -- Market Talk - Moomoo",
+            "link": "https://news.google.com/rss/articles/CBMisAFBVV95cUxNQkpocndHMHl3dXhnYXNHVEg0OFM3dlJ6TnUtLTk5UTNNYU50TTBYRXBjUzFaV3dpcEZhbWF5Y2p1QjIyakFNdEFjVmtKQlFHYV80c2RyNFRYZ0E2SnFVMHFiUVp4Vl92ajZKNWhFWmQ3Zk1RZmxNeE05MlExOXJ6Mnc3VVllTXlpSE9CeXBXOFg3TC1aYTZTUEdIcUdmWnY3cS1nZUFoUzFuemExdUVNYQ?oc=5",
+            "publishedAt": "2026-09-21T06:57:00.000Z"
+          },
+          {
+            "source": "GoogleNews(en) bitcoin",
+            "title": "Hamak Strategy Sells 8 Bitcoin for £482,516 to Fund Akoko Gold Project and Reduce Debt - Yahoo Finance UK",
+            "link": "https://news.google.com/rss/articles/CBMihgFBVV95cUxPaFF2UnpnQ2xWOXdfNmVJTDZYdTFUOW5qbldBSElRUVZhRG5RQ3VJdzl4SDUzU1VlYTBFa2lMWHJKdGdfdXpWRnRmRDdTMnNBMzF2TzRSMGJ3aFhpazdmcUNUdVAybkZnVng5eW0yb0p2WWVoNWluQ2h0QmN5OUg5WU9vbjdIZw?oc=5",
+            "publishedAt": "2026-09-21T06:48:45.000Z"
+          },
+          {
+            "source": "GoogleNews(en) bitcoin",
+            "title": "ETF Flows Turn Positive in a Volatile Week as SEC Tokenization Exemptions Boost Sentiment - Moomoo",
+            "link": "https://news.google.com/rss/articles/CBMinwFBVV95cUxOZU1RLW9mR0h1SU9fUE5WeG41TU9LTmdkT3h0ZVZ4VXpHcHluMXc5UVJCNENVQURiVWRRT2pyTW01TldvcVBVOTZBVm80MGRGZnkyZzFVZ3lSTlZHaFJqdENMWHRHQkl5RWthM05tbUx4T0JvazltdmxacFRpYTVXN0cxXzRTUFJSSlpvdDU2NDMzVHBjNHVRa1k3X3dNeDA?oc=5",
+            "publishedAt": "2026-09-21T06:39:09.000Z"
+          },
+          {
+            "source": "GoogleNews(en) bitcoin",
+            "title": "On the Chain: Bitcoin pushes above US$81,000 as ETF buying returns - UPDATE - Proactive financial news",
+            "link": "https://news.google.com/rss/articles/CBMi2wFBVV95cUxOMmgwNDcyNDRnWmZ5RGw3T1hxdjU4eVpGN1VsS0RFNWpzYjBJMERVX3Z4ZUdvVXQ3Y3VDa243MEpraDR2ZWZFdmRtWkJOR09qbzAzLVJQeUhaaG1xV0RSdTZIbFVsZ0NLRXJVS3FKVmFGTG5QVFdSX3NORkhaTTBpN3lZbUlFVWZEczFuWTJGVmZDUy1pSFhlZWJvTFZNTWluUUhQR2RwWDBKc2ZndnJBRGVoS3g0eVBRajlaNkZBcEs",
+            "publishedAt": "2026-09-21T06:23:55.000Z"
+          }
+        ]
+      },
+      {
+        "name": "news:GoogleNews(en) crypto market",
+        "ok": true,
+        "ms": 0,
+        "items": [
+          {
+            "source": "GoogleNews(en) crypto market",
+            "title": "XRP Beats Bitcoin in August With a 30% Monthly Gain - CryptoRank",
+            "link": "https://news.google.com/rss/articles/CBMikgFBVV95cUxNRkNRbjB1aTVka0g5bE9wRnlRU2xJQ0VWWVpwZ083RUt5dlQzbGJOUmFWR2pqVDZUR1haMXZuRHh4YnQzdnhsZzRielRLNE8zLTZRWTBCQnBTQU5BTU9pcFRwSDNFMFBIVGtUZjNYdWNZWTVIZGpjbHpXOW5mZ3JCQk4zcHFqTXg2Q2c5c2g2Vlhwdw?oc=5",
+            "publishedAt": "2026-09-21T06:54:22.000Z"
+          },
+          {
+            "source": "GoogleNews(en) crypto market",
+            "title": "3 Events That Could Shake Up Bitcoin and Crypto Markets This Week - CryptoRank",
+            "link": "https://news.google.com/rss/articles/CBMipgFBVV95cUxPLU1hV1UzTVdUNURWS1NMdnV2TFJYaENiZGtkQlJ1SGtSTUQxcjBXZ0owWG5IOFdzTlFwWVBiT0xpaFl4Mm1xOG1VSnBWcUVwSWF1dGQ3LTY3R21pRnZYWEdqaUZ6ZTU2QUV2RmVZdnJxSjFsUUlwMVF1Y0czZW5kdlY3YzRLTE1rd0tUOFRmQTFubmxVSklJS1ZXZl9fMnluQW5FTnd3?oc=5",
+            "publishedAt": "2026-09-21T06:45:00.000Z"
+          },
+          {
+            "source": "GoogleNews(en) crypto market",
+            "title": "3 Events That Could Shake Up Bitcoin and Crypto Markets This Week - CryptoPotato",
+            "link": "https://news.google.com/rss/articles/CBMilgFBVV95cUxOU3lxWWJkYXY3NkZzRTg2U0xKOHUzVnVGclhhMEVidFRyV0RJQ055U1BIYjM5UHBfVloxUTRrWHlDMHN2cHAyMzlxWktUQ1FTZTRQMFU0Rmw0b0hOakMxVm9FbjV2VnF2X2RjYnlqUmEtbkh1bVFjVlBRakEzc0lZb1RKTUVFN04ybVIyLW9mN1ZJNUdxV0E?oc=5",
+            "publishedAt": "2026-09-21T06:34:00.000Z"
+          },
+          {
+            "source": "GoogleNews(en) crypto market",
+            "title": "Crypto Market Surges as Altcoins Take the Lead: What’s Driving Bitcoin, Ethereum and NEAR Prices? - TradingView",
+            "link": "https://news.google.com/rss/articles/CBMi6AFBVV95cUxQVE9aWEhCYi0wQ29JM2tPN0JQaG5MODFwWlByZldYdWJmMzgyNXdJSGM3UHFvaWN3TzAxNlR3WGhyOHFsM0U4Q1FRbEFRbXJGTEwxOVgteUx6VXJVcmVEOXh1aEFIZ05IeVZHTFNOMGl6X2VXalJvaU5JWE1hRzVzWlBVckM5ckl1VnF0NVlxY2s4YzVqMUpWVFdaRDR4d3FHS3VoNDNWN25rUThKMEFrRWx5RFRHSHVVREhqUTRvRXJ",
+            "publishedAt": "2026-09-21T06:15:00.000Z"
+          },
+          {
+            "source": "GoogleNews(en) crypto market",
+            "title": "Dogecoin price on Sep 21, 2026 at 3am EDT Crypto Prediction Market - Robinhood",
+            "link": "https://news.google.com/rss/articles/CBMitAFBVV95cUxOSjdlYW5sY2xNRVJDYjhPbHlXYTJraWlhVWJLVEE4Tmo4V2pla21NZDU5azdQSDc3TXM3QnA1ZEFtVVJ2anZleUJlZllwRm1UV25LUU1tN09HREpONWl3eWU3SkNjVkFoYkczaEhHc3pPRzhxSi1TRkQ3eGhtOERoMlhNbWdWYTBJV0RRaHBERnBqcE9fb0VFdUhuWGpVS2xSNWFlMUFzMkFhOFBqWGNtNkt4SXE?oc=5",
+            "publishedAt": "2026-09-21T06:08:23.000Z"
+          },
+          {
+            "source": "GoogleNews(en) crypto market",
+            "title": "ETH price on Sep 21, 2026 at 3am EDT Crypto Prediction Market - Robinhood",
+            "link": "https://news.google.com/rss/articles/CBMirgFBVV95cUxPdlBsbU9oY0VfamFTMmx3akltTHVuaUdFWUhFZExtcEJNYW5vMnhuRUdzbmZ4bGpHZjJjR09RSk1SMjd0b3NiTUt3alNYamxyUFI1NTN5YU4wckZLYVNYNDlXT1BTOGJTRl84Z0ozdnY1YVFLYk1oaG96bmxwbHNWS0tfVHQ1WnNRa0lHWGktN01oUFhZaWJ5SFBvNURPM0lqT3g5WmwyQjFOQjdZZlE?oc=5",
+            "publishedAt": "2026-09-21T06:08:22.000Z"
+          },
+          {
+            "source": "GoogleNews(en) crypto market",
+            "title": "HYPE price on Sep 21, 2026 at 3am EDT Crypto Prediction Market - Robinhood",
+            "link": "https://news.google.com/rss/articles/CBMirwFBVV95cUxPVGNDME1XdngwZC1vX3ZQZE80eXdPcFhNa3ZMVFpVOEdYbHF4VnBvZkdLOFM5LWl4QzRsRTZoWkdMZm1HQzNMTXBmUmFtVW4tbEdhWTlEaDRJYW9TTGpJaFN2RkNwSE90ZXdQZERaMlJWOFJvX2JBWjl3d2plVmo1ck9yeFpMQlFnRDl5alhJTkkyRW52TV9XeDgxVlFpTUNEdFltUlNIekViWTNRVmFn?oc=5",
+            "publishedAt": "2026-09-21T06:08:19.000Z"
+          },
+          {
+            "source": "GoogleNews(en) crypto market",
+            "title": "Bitcoin Climbs Back Above $81,000 as SEC Opens the Door to Tokenized Stocks - trendingtopics.eu",
+            "link": "https://news.google.com/rss/articles/CBMipwFBVV95cUxOaGEzaEdvcDQzUDhvYUJrV1NpSGFXUGZnbEdrUVBiREJ4Q0RiU1k0TVBDc3FvYWlUTldLSDVpNnFjUzluUmVsdzhsbmROQm9KQkN3MW82aUJTMzdpWERYNFlVYktEa1A0andSMTh5QXRxNGdSbEQ5ZEFaMjlEcE43YTlFNUx2ZjFLRkNQcWd6MlREWE5uR21BN0JvME1pMkwtZ29hZ0taTQ?oc=5",
+            "publishedAt": "2026-09-21T06:07:50.000Z"
+          }
+        ]
+      },
+      {
+        "name": "news:GoogleNews(ko) 비트코인",
+        "ok": true,
+        "ms": 0,
+        "items": [
+          {
+            "source": "GoogleNews(ko) 비트코인",
+            "title": "[퇴근길 7분 뉴스] 유엔총회·7000피·비트코인·성수3지구 - DealSite경제TV",
+            "link": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1HNTRjTGtGczQzazdFVnktNXJqbGdreFZCZ0d6eEFnM28weGlmNlE2WEcyN0JBeWdBMDZmS0JUSVdrd3N4NzduWGM2QlZoZkdkelc5cDJ3?oc=5",
+            "publishedAt": "2026-09-21T06:57:00.000Z"
+          },
+          {
+            "source": "GoogleNews(ko) 비트코인",
+            "title": "[특징주] 비트코인 8만달러 탈환에 국내 가상화폐 관련주 강세(종합) - 연합뉴스",
+            "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE1uUFY5SzctWmRZYzJtX1ZGNFkxdjZSclE1aklRbHBNQmpFRWtzRFA0dHpUM1FsQjVTVU9HNE56RVEzSzBIOWg3Rk9HSnAxMWFydVpud3R0ZklIWG_SAWBBVV95cUxQTENHakxoUFJ5ZmhnLWhiOTFNLTZUN0RRanl3XzhFSngxZlpfSkdWZU40TnhnNGtmZTlXS19aSHFKRjBBN29QZHQ0MlpSMjhHRXNIRUk0elVfUDB2cnJOQWg?oc=",
+            "publishedAt": "2026-09-21T06:43:25.000Z"
+          },
+          {
+            "source": "GoogleNews(ko) 비트코인",
+            "title": "토큰화 주식 움직임에 암호화폐 심리 개선, 비트코인 8만 5천 달러 돌파 - Investing.com 한국어",
+            "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE1UOVQyTjE4RWNwQ1BkZXI1R0l0REJlZ3VjQV9qbGVteFRyZWVXMWRSQkZvT2QwU2tXNW1ydGtnQTkxQVV5ODNnRGJoYzVKRHAyTS0tUFB3aHBnanI5ZzVfSFBSeG43ZU5BdGdLSy1vanZOUFE?oc=5",
+            "publishedAt": "2026-09-21T06:39:00.000Z"
+          },
+          {
+            "source": "GoogleNews(ko) 비트코인",
+            "title": "하막, 가나 금 프로젝트 평가 자금 마련 위해 비트코인 8개 매각 - Investing.com 한국어",
+            "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTFBhMTF6ZDZTeDZBLTJfN0YwQk9JRXNDSVRodVJrQktVd3FydVhKdWZnN2xQSlBuQlZNZkhSZk9zV0twWG5LWGJIVTgtSGlhSEloS2txTXZ0WlliVVJfMlhHb2VJLUxlYjJBN0tCaDBFeWY?oc=5",
+            "publishedAt": "2026-09-21T06:29:00.000Z"
+          },
+          {
+            "source": "GoogleNews(ko) 비트코인",
+            "title": "[코인시황] 8만1000달러선 뚫은 비트코인…미·중 협상에 위험자산 선호 '회복' - 뉴스웍스",
+            "link": "https://news.google.com/rss/articles/CBMib0FVX3lxTE5IbGtOSFhmNGh1WU9oNmVFOVlpUktoN3p3RUdHMXZ4M1Q2SnVsclBWdWlsREJsQVR2Y3hVMDJ3Z3RpS28tbENFUEFITm80VFUyWHZOTmFnNkdZMlprdVJNZXJVVDNPY1BEaTFRS3R0Y9IBc0FVX3lxTE5jdnBNcW1WNm9uYjVDam9oWHFQNGZTc3AzOTY1cklMcngxNUJmVEJSbzZkdFFYa3dtVFBsU0RQblhxNFJNVmgwUTNHbFZCSjc",
+            "publishedAt": "2026-09-21T06:20:49.000Z"
+          },
+          {
+            "source": "GoogleNews(ko) 비트코인",
+            "title": "[D-BIZ 암호화폐 뉴스] 비트코인 8만1천달러 돌파…NEAR 23% 급등, SEC 토큰화 주식 승인 여파 - 데일리비즈온",
+            "link": "https://news.google.com/rss/articles/CBMibEFVX3lxTE9sYXAzNjF6b1dqSnlJSzkyMjRnQVRCaEdIN05GLWlpT1pxY3UzYzd5R1AyMlAzX0FZb2x3MjFKcDlBbjMyWlhiSzZHb1BJZmdhNDNPQi13WUJtTUdZdXFmbURYMUlqbVZCcjRMMQ?oc=5",
+            "publishedAt": "2026-09-21T06:10:05.000Z"
+          },
+          {
+            "source": "GoogleNews(ko) 비트코인",
+            "title": "비트코인 8만 달러 탈환…가상화폐 관련株 일제히 급등 - 매일신문",
+            "link": "https://news.google.com/rss/articles/CBMiYkFVX3lxTFB3Umh0OWJscmtyZ01OZXJMa3lPQ3JZY1pCMS1HYjVJcmltdXNndVBhMEpVczFJbnBtZ0J6VmZsc1RMbHRNc0N6a2FkSVIycklvZElGNmZvUFI1a3FxYXhHbnVB?oc=5",
+            "publishedAt": "2026-09-21T05:49:30.000Z"
+          },
+          {
+            "source": "GoogleNews(ko) 비트코인",
+            "title": "비트코인 8만달러 회복하자…국내 가상화폐 관련주도 상승세 - 매일경제 마켓",
+            "link": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE1vWk45RGZleElYNmNHYzFTZUQtN2l5T0dwUlU1dnNSUU9XM2drM3drOWFwRUI0TVNOalgwU2M2YUNkdFQySXc5MVJEZWwxbGM0dmc?oc=5",
+            "publishedAt": "2026-09-21T05:45:38.000Z"
+          }
+        ]
+      }
+    ],
+    "asOf": "2026-09-21T10:10:00.000Z"
+  },
+  "recentJournal": [
+    {
+      "ts": "2026-09-19T10:10:00.000Z",
+      "kst": "2026-09-19 19:10:00",
+      "cycleId": "20260919-1910",
+      "agent": "oc-keeper",
+      "stance": "neutral",
+      "status": "executed",
+      "dryRun": false,
+      "equityBefore": 10000000,
+      "equityAfter": 9999999.99,
+      "cashRatioAfter": 0.618000022618,
+      "proposed": [
+        {
+          "market": "KRW-BTC",
+          "side": "buy",
+          "krw": 1310000,
+          "amount": null
+        },
+        {
+          "market": "KRW-ETH",
+          "side": "buy",
+          "krw": 1090000,
+          "amount": null
+        },
+        {
+          "market": "KRW-XRP",
+          "side": "buy",
+          "krw": 670000,
+          "amount": null
+        },
+        {
+          "market": "KRW-SOL",
+          "side": "buy",
+          "krw": 750000,
+          "amount": null
+        },
+        {
+          "market": "KRW-DOGE",
+          "side": "buy",
+          "krw": 840000,
+          "amount": null
+        }
+      ],
+      "results": [
+        {
+          "market": "KRW-BTC",
+          "side": "buy",
+          "amount": 0.01176238,
+          "krw": 1310000,
+          "status": "filled",
+          "orderId": 1,
+          "price": 111372000,
+          "error": null,
+          "cid": "20260919-1910/1"
+        },
+        {
+          "market": "KRW-ETH",
+          "side": "buy",
+          "amount": 0.30143805,
+          "krw": 1090000,
+          "status": "filled",
+          "orderId": 2,
+          "price": 3616000,
+          "error": null,
+          "cid": "20260919-1910/2"
+        },
+        {
+          "market": "KRW-XRP",
+          "side": "buy",
+          "amount": 345.89571502,
+          "krw": 670000,
+          "status": "filled",
+          "orderId": 3,
+          "price": 1937,
+          "error": null,
+          "cid": "20260919-1910/3"
+        },
+        {
+          "market": "KRW-SOL",
+          "side": "buy",
+          "amount": 4.89236791,
+          "krw": 750000,
+          "status": "filled",
+          "orderId": 4,
+          "price": 153300,
+          "error": null,
+          "cid": "20260919-1910/4"
+        },
+        {
+          "market": "KRW-DOGE",
+          "side": "buy",
+          "amount": null,
+          "krw": 840000,
+          "status": "rejected",
+          "reason": "회차당 주문 상한 4건 초과"
+        }
+      ],
+      "flags": [],
+      "rationale": "검산표 5개 항목 전부 통과 — 제안 목표 비중을 그대로 옮긴다. (1)편입: 5종목 모두 추세 down 아님·RSI<80·거래대금비≥0.5. (2)변동성 가중: 비중 순서(BTC>ETH>DOGE>SOL>XRP)가 일변동성 역순(1.84<2.21<2.85<3.19<3.59)과 정확히 일치. (3)총노출 46.6%≤60%·현금 53.4%≥40%, 공포탐욕 71(<80)·수익률 +0.00% 이므로 축소 배율 없음이 맞다. (4)신규 편입 5종목 모두 24h < 일변동성×3. (5)지표 시각 = 회차 기준 시각(19:10), 현금 1,000만 + 평가액 0 = 총자산 1,000만. 뉴스에 해킹·거래정지·디페그·거래금지 규제 없음(CFTC 규칙 제출·CLARITY 법 지연은 거래 금지가 아니다). 보조: 보유 코인이 없어 전량 매도 대상 없음, 최소 목표인 XRP 6.7%=67만원도 최소 거래 10만원 위, 현재 비중 0 과의 차이가 전부 밴드 3% 밖이라 5종목 모두 주문 대상이다. 다만 회차당 주문 상한이 4건이라 한 건은 다음 회차로 밀린다.",
+      "evidence": [
+        "snapshot 1절: 총자산 10,000,000원 = 현금 10,000,000원 + 코인 평가액 0원 · 시작 대비 +0.00% · 보유 코인 없음 (장부 정합 확인)",
+        "snapshot 2절 기준 시각 2026-09-19 19:10 KST = 회차 기준 시각과 동일 → 신선도 통과",
+        "snapshot 2절 추세: BTC up · ETH up · XRP up · SOL up · DOGE mixed → down 없음",
+        "snapshot 2절 RSI14: BTC 67 · ETH 72 · XRP 64 · SOL 59 · DOGE 50 → 전부 80 미만",
+        "snapshot 2절 거래대금비: BTC 2.14x · ETH 1.93x · XRP 1.50x · SOL 2.38x · DOGE 1.77x → 전부 0.5 이상",
+        "snapshot 2절 일변동성20: BTC +1.84% · ETH +2.21% · DOGE +2.85% · SOL +3.19% · XRP +3.59% — 제안 비중 13.1/10.9/8.4/7.5/6.7% 와 역순 일치",
+        "1÷일변동성 비중 재계산: BTC 28.0% · ETH 23.3% · XRP 14.4% · SOL 16.2% · DOGE 18.1% × 총노출 46.6% = 13.06/10.88/6.70/7.54/8.43% (제안과 일치)",
+        "가중평균 일변동성 재계산 2.58% · 변동성 목표 1.20% ÷ 2.58% = 46.5% → 제안 총노출 46.6% (상한 60% 이내)",
+        "snapshot 3절 공포탐욕 71 Greed → policy.md 2-4 의 ×0.7(≥80) 구간 아님 · 손실 사다리도 +0.00% 로 미적용 → 제안 메모의 '배율 없음' 확인",
+        "급등 편입 확인 24h vs 일변동성×3: BTC +3.37<5.52 · ETH +4.54<6.63 · XRP +5.62<10.77 · SOL +4.78<9.57 · DOGE +0.00<8.55 → 절반 축소 대상 없음",
+        "snapshot 4절 뉴스 16건: 숏스퀴즈 8만달러 회복·ETF 순유입·CFTC 규칙 제출·CLARITY 법 상원 좌절 — 해킹·출금중단·업비트 거래정지·디페그·거래금지 규제 제목 없음",
+        "snapshot 6절 상한: 회차당 최대 4건 (policy.json maxOrdersPerCycle 4) 인데 목표 비중은 5종목 → 이번 회차 주문 4건, 나머지 1건은 다음 회차"
+      ],
+      "confidence": 0.62,
+      "horizonHours": 24,
+      "invalidation": "BTC 또는 ETH 의 1시간봉 추세가 down 으로 바뀌거나, 공포탐욕 지수가 80 이상이 되어 총노출 배율 ×0.7 이 걸리거나, 어느 종목의 RSI14 가 80 이상이 되면 이 비중은 무효다.",
+      "risk": {
+        "equity": 10000000,
+        "startCash": 10000000,
+        "ddFromStart": 0,
+        "dd24h": null,
+        "buyHalt": false,
+        "turnoverTodayBefore": 0,
+        "turnoverTodayAfter": 3820000,
+        "cashAfter": 6180000,
+        "grossAfter": 3820000,
+        "cashRatioAfter": 0.618,
+        "grossRatioAfter": 0.382
+      },
+      "replay": true
+    },
+    {
+      "ts": "2026-09-20T10:10:00.000Z",
+      "kst": "2026-09-20 19:10:00",
+      "cycleId": "20260920-1910",
+      "agent": "oc-keeper",
+      "stance": "neutral",
+      "status": "executed",
+      "dryRun": false,
+      "equityBefore": 9919159.79,
+      "equityAfter": 9919159.79,
+      "cashRatioAfter": 0.5907134035593553,
+      "proposed": [
+        {
+          "market": "KRW-BTC",
+          "side": "buy",
+          "krw": 320621,
+          "amount": null
+        }
+      ],
+      "results": [
+        {
+          "market": "KRW-BTC",
+          "side": "buy",
+          "amount": 0.00290946,
+          "krw": 320620,
+          "status": "filled",
+          "orderId": 5,
+          "price": 110199000,
+          "error": null,
+          "cid": "20260920-1910/1"
+        }
+      ],
+      "flags": [
+        "KRW-ETH: 목표 +10.72% vs 현재 +10.72% — 밴드 안이라 유지",
+        "KRW-XRP: 목표 +6.60% vs 현재 +6.60% — 밴드 안이라 유지",
+        "KRW-SOL: 목표 +7.31% vs 현재 +7.31% — 밴드 안이라 유지"
+      ],
+      "rationale": "검산표 5개 항목 전부 통과 → 제안을 줄이지 않는다. 다만 밴드(3%) 안의 드리프트는 손대지 않는다는 규칙대로, 제안과 현재 비중의 차이가 3% 미만인 ETH(13.3 vs 10.72 · 2.58%p) XRP(8.3 vs 6.60 · 1.70%p) SOL(9.2 vs 7.31 · 1.89%p) 은 현재 비중을 그대로 적고, 차이가 3.23%p 로 밴드를 벗어난 BTC 만 제안치 16.3% 로 올린다(매수 약 32만원 · 최소 주문액 10만원 통과). DOGE 는 1h 추세 down 으로 제안에서 빠졌는데 지난 회차 매수가 주문 상한에 걸려 거절됐던 터라 보유 수량이 없다 — 매도할 것이 없어 주문도 없다. 뉴스 제목에 해킹·거래정지·디페그·거래금지 규제 없음. 결과 총노출 40.9% · 현금 59.1%.",
+      "evidence": [
+        "편입 판정(스냅샷 2절, 19:10 KST): BTC mixed/RSI47/거래대금비 0.91x, ETH mixed/39/0.86x, XRP mixed/42/0.82x, SOL mixed/39/1.23x — 모두 down 아님·RSI<80·비율≥0.5 로 제안의 '적격'과 일치. DOGE 는 down(116원 < EMA20 < EMA50)이라 0% 제안이 맞다.",
+        "변동성 가중(2절): 일변동성 BTC 1.84% < ETH 2.25% < SOL 3.27% < XRP 3.60%, 제안 비중 16.3 > 13.3 > 9.2 > 8.3 으로 역순 일치. 1/변동성 정규화 재계산치 16.3/13.3/9.2/8.3 과 제안이 소수점까지 같다.",
+        "총노출(제안 메모 + 3절): 1.20% ÷ 가중평균 2.55% = 47.1% ≤ 상한 60%, 현금 52.9% ≥ 40%. 공포탐욕 71(3절)은 80 미만이라 ×0.7 배율 없음, 시작 대비 -0.81%(1절)는 -2% 초과라 손실 사다리 없음 — 메모에 배율이 없는 것이 맞다.",
+        "급등 편입(2절): 이번에 새로 편입되는 종목 없음(BTC/ETH/XRP/SOL 모두 기보유). 24h 수익률도 전부 음수(-0.90 ~ -3.07%)라 일변동성×3 초과 종목 없음.",
+        "신선도·장부(1·2절): 지표 기준 시각 2026-09-20 19:10 KST = 회차 기준 시각과 동일(0시간). 현금 6,180,000원 + 코인 평가액 3,739,160원 = 총자산 9,919,160원 으로 일치.",
+        "밴드 판정(1절 비중 vs 제안): BTC 13.07→16.3(+3.23%p, 밴드 밖) · ETH 10.72→13.3(+2.58%p) · XRP 6.60→8.3(+1.70%p) · SOL 7.31→9.2(+1.89%p, 셋 다 밴드 안).",
+        "뉴스(4절, 기준 시각 이전 48h): 거래소 해킹·출금 중단·업비트 거래 정지·스테이블코인 디페그·거래 금지 규제 제목 없음. 'SEC·CFTC 움직였다'(09-20 11:13) 등은 규제 진전 쪽 제목이다.",
+        "보유 중 제안에서 빠진 종목: DOGE(제안 0%). 1절 보유 표에 DOGE 행이 없다(지난 회차 매수 거절) → 매도 주문 불필요."
+      ],
+      "confidence": 0.72,
+      "horizonHours": 24,
+      "invalidation": "다음 회차에 BTC 또는 ETH 의 1시간봉 추세가 down 으로 바뀌거나, 공포탐욕 지수가 80 이상이 되어 총노출 배율 ×0.7 이 걸리거나, 시작 대비 수익률이 -2% 이하로 내려가 손실 사다리 ×0.6 이 걸리면 이 비중은 무효다.",
+      "risk": {
+        "equity": 9919159.79,
+        "startCash": 10000000,
+        "ddFromStart": -0.008084021000000052,
+        "dd24h": -0.00808402000808417,
+        "buyHalt": false,
+        "turnoverTodayBefore": 0,
+        "turnoverTodayAfter": 320620,
+        "cashAfter": 5859380.22,
+        "grossAfter": 4059779.56,
+        "cashRatioAfter": 0.5907133612170593,
+        "grossRatioAfter": 0.40928663777479085
+      },
+      "replay": true
+    }
+  ],
+  "equity": [
+    {
+      "ts": "2026-09-19T10:10:00.000Z",
+      "kst": "2026-09-19 19:10:00",
+      "cycleId": "20260919-1910",
+      "total": 9999999.99,
+      "cash": 6180000.22,
+      "holdingValue": 3819999.77,
+      "profitRate": 0
+    },
+    {
+      "ts": "2026-09-20T10:10:00.000Z",
+      "kst": "2026-09-20 19:10:00",
+      "cycleId": "20260920-1910",
+      "total": 9919159.79,
+      "cash": 5859380.64,
+      "holdingValue": 4059779.15,
+      "profitRate": -0.008084
+    }
+  ],
+  "policy": {
+    "maxWeightPerMarket": 0.3,
+    "maxGrossExposure": 0.6,
+    "cashFloor": 0.4,
+    "maxOrdersPerCycle": 4,
+    "maxTurnoverPerDay": 0.5,
+    "minTradeKRW": 100000,
+    "rebalanceBand": 0.03,
+    "drawdownHaltPct": 0.06,
+    "dailyLossHaltPct": 0.03
+  }
+}

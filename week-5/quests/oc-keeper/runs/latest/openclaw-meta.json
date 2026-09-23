@@ -1,0 +1,28 @@
+{
+  "runtime": "openclaw-agent-exec",
+  "exitCode": 0,
+  "wallSeconds": 112,
+  "status": "ok",
+  "sessionId": "77a6286e-f048-4936-90cc-0b913cf9504b",
+  "costUsd": null,
+  "usage": {
+    "input": 2,
+    "output": 3,
+    "cacheRead": 77851,
+    "cacheWrite": 2791
+  },
+  "assistantTurns": null,
+  "provider": "claude-cli",
+  "model": "claude-opus-5",
+  "tools": {
+    "calls": 12,
+    "tools": [
+      "Read",
+      "Bash",
+      "Write"
+    ],
+    "failures": 0
+  },
+  "result": "I'll start by reading the procedure skill and the cycle inputs.\n\n5개 항목 검산을 마쳤다. 결과 파일을 쓴다.\n\n검산 5/5 통과 — 편입(추세·RSI<80·거래대금비≥0.5 전원 충족) · 변동성 역순 일치 · 총노출 1.20÷2.91=41.2%(공포탐욕 78 로 ×0.7 미적용) · 신규편입 BTC 24h +1.47% < 6.42% · 지표 신선·장부 1원 오차. 경성 위험 뉴스 없음.\n자세 neutral — 제안을 줄이지 않고 그대로: BTC 11.2% · ETH 10.6% · XRP 6.1% · SOL 7.1% · DOGE 6.2%. 밴드 3% 안인 ETH·XRP·SOL 은 주문이 생기지 않고, 움직이는 칸은 BTC 재편입(약 1,142,351원 매수)과 DOGE 10.47%→6.2%(약 435,522원 매도) 두 건.\n밴드 안 종목의 현재 비중이 제안보다 높은 첫 사례라 '현재 비중 유지' 대신 제안 값을 적어 상한을 지켰다 — 밴드 판정은 실행 코드가 하므로 결과는 같다.",
+  "error": null
+}

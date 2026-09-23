@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "status": "ok",
+  "final": "I'll follow the league cycle procedure. Let me start by reading the skill and inputs.\n\n검산 5/5 통과 — 편입 판정(추세·RSI<80·거래대금비≥0.5) · 변동성 역순 가중(1.84<2.21<2.85<3.19<3.59) · 총노출 46.6%≤60%·현금 53.4%≥40%(공포탐욕 71 이라 배율 없음) · 급등 편입 없음(24h 전부 일변동성×3 미만) · 신선도 19:10 일치·장부 1,000만 정합. 경성 위험 뉴스 없음.\n자세 `neutral` — 제안 그대로 BTC 13.1% · ETH 10.9% · DOGE 8.4% · SOL 7.5% · XRP 6.7% (코인 46.6% / 현금 53.4%), 줄인 종목 없음.\n검산이 통과한 제안에 취향을 얹지 않는 것이 규칙이다 — 다만 5종목 신규 편입인데 회차당 주문 상한이 4건이라 한 건은 다음 회차로 밀린다(교훈 후보로 기록).",
+  "payloads": [
+    {
+      "text": "I'll follow the league cycle procedure. Let me start by reading the skill and inputs.\n\n검산 5/5 통과 — 편입 판정(추세·RSI<80·거래대금비≥0.5) · 변동성 역순 가중(1.84<2.21<2.85<3.19<3.59) · 총노출 46.6%≤60%·현금 53.4%≥40%(공포탐욕 71 이라 배율 없음) · 급등 편입 없음(24h 전부 일변동성×3 미만) · 신선도 19:10 일치·장부 1,000만 정합. 경성 위험 뉴스 없음.\n자세 `neutral` — 제안 그대로 BTC 13.1% · ETH 10.9% · DOGE 8.4% · SOL 7.5% · XRP 6.7% (코인 46.6% / 현금 53.4%), 줄인 종목 없음.\n검산이 통과한 제안에 취향을 얹지 않는 것이 규칙이다 — 다만 5종목 신규 편입인데 회차당 주문 상한이 4건이라 한 건은 다음 회차로 밀린다(교훈 후보로 기록).",
+      "mediaUrl": null
+    }
+  ],
+  "usage": {
+    "input": 2,
+    "output": 1,
+    "cacheRead": 75959,
+    "cacheWrite": 3546
+  },
+  "toolSummary": {
+    "calls": 11,
+    "tools": [
+      "Read",
+      "Bash",
+      "Write"
+    ],
+    "failures": 0
+  },
+  "model": "claude-opus-5",
+  "provider": "claude-cli",
+  "sessionId": "1aabab7c-ca70-44e2-b5b5-cf13d0fb1a06"
+}

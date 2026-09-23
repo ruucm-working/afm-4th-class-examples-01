@@ -1,0 +1,19 @@
+{
+  "runtime": "claude-code",
+  "exitCode": 0,
+  "wallSeconds": 205,
+  "sessionId": "766b831b-0440-4dac-8402-3c86621d0701",
+  "costUsd": 1.56267875,
+  "turns": 10,
+  "models": [
+    "claude-opus-5"
+  ],
+  "denials": [],
+  "subagents": {
+    "bull": 1,
+    "bear": 1,
+    "risk-officer": 1
+  },
+  "result": "검증 통과 (`✓ decision.json 유효`). 결정 요약 세 줄:\n\n**자세 — neutral.** 추세 up 5종목·공포탐욕 70(<80)으로 risk-on 의 *지표* 조건 둘은 충족했지만, 첫 조건인 \"강세 논지가 약세 반박을 견딤\"이 책 전체에서 깨졌다. XRP·SOL 은 양측이 **같은 숫자를 반대로 읽은 순수 상쇄**(XRP 거래대금비 0.94x, SOL 30d +19.77%·20d고점比 +0.13%)라 어느 쪽 근거도 아니고, BTC 는 4대4 팽팽이다 → policy.md 3절 \"논지가 팽팽하면 neutral\".\n\n**목표 비중 — BTC 24% · ETH 20% · XRP/SOL/DOGE 0** (총노출 24.7%→44.7%, 현금 55.3%). BTC 는 현 보유 24.72% 와 밴드 5% 안이라 주문 없이 유지, 실제 주문은 ETH 매수 2,000,698원 1건뿐. 리스크 담당의 neutral 상한(BTC·ETH 각 25%, 총 45%) 이내이고 이견 없다 — 거부권도 없었다.\n\n**채택한 논지 —** BTC 는 ETF 유입(Moomoo 09-21 15:57·15:39)이 미반박이지만 bear 의 RSI 81 고점추격도 미반박이라 ",
+  "error": null
+}

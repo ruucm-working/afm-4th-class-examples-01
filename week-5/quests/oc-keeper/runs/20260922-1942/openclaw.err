@@ -1,0 +1,5 @@
+[agent/cli-backend] bundle MCP skipped unavailable OAuth server notion: MCP server "notion" requires OAuth authorization. Run openclaw mcp login notion.
+[agent/cli-backend] cli session history refused across auth boundary: reason=auth-unknown
+[agent/cli-backend] cli exec: provider=claude-cli model=claude-opus-5 promptChars=371 trigger=user useResume=false session=none resumeSession=none reuse=none historyPrompt=none
+[agent/cli-backend] cli live session start: provider=claude-cli model=claude-opus-5 activeSessions=1
+[agent/cli-backend] cli turn: provider=claude-cli model=claude-opus-5 durationMs=107997 outBytes=908 outHash=9206a87b7958

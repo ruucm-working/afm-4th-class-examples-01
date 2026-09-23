@@ -1,0 +1,10 @@
+{
+  "strategy": "keeper",
+  "targetDailyVol": 0.012,
+  "allowMixed": true,
+  "maxRsi": 80,
+  "minVolumeRatio": 0.5,
+  "minWeight": 0.05,
+  "greedCut": { "80": 0.7, "90": 0.5 },
+  "ddLadder": { "-0.02": 0.6, "-0.04": 0.3 }
+}

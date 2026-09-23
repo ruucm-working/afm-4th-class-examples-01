@@ -1,0 +1,68 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(node ../common/risk.mjs *)",
+      "Bash(node ../common/validate.mjs *)",
+      "Bash(node ../common/review.mjs *)",
+      "Bash(cat *)",
+      "Bash(ls *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(echo *)",
+      "Bash(python3 *)",
+      "Bash(bc *)",
+      "Bash(awk *)",
+      "Bash(sort *)",
+      "Bash(cut *)",
+      "Bash(grep *)"
+    ],
+    "deny": [
+      "WebFetch",
+      "WebSearch",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(git *)",
+      "Bash(rm *)",
+      "Bash(node ../common/execute.mjs *)",
+      "Bash(node ../common/snapshot.mjs *)",
+      "Write(policy.md)",
+      "Edit(policy.md)",
+      "Write(policy.json)",
+      "Edit(policy.json)",
+      "Write(CLAUDE.md)",
+      "Edit(CLAUDE.md)",
+      "Write(.claude/**)",
+      "Edit(.claude/**)",
+      "Write(memory/**)",
+      "Edit(memory/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-bash.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-decision.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "_note": "허용 목록은 첫 단어로 거르는 규칙이고, 파이프·복합 명령 안의 위험 명령은 hooks/guard-bash.sh 가 본다. python3 는 산술 검산용 — 네트워크 모듈은 가드가 막는다."
+}

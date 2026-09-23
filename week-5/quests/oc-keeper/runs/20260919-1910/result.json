@@ -1,0 +1,131 @@
+{
+  "ts": "2026-09-19T10:10:00.000Z",
+  "kst": "2026-09-19 19:10:00",
+  "cycleId": "20260919-1910",
+  "agent": "oc-keeper",
+  "stance": "neutral",
+  "status": "executed",
+  "dryRun": false,
+  "equityBefore": 10000000,
+  "equityAfter": 9999999.99,
+  "cashRatioAfter": 0.618000022618,
+  "proposed": [
+    {
+      "market": "KRW-BTC",
+      "side": "buy",
+      "krw": 1310000,
+      "amount": null
+    },
+    {
+      "market": "KRW-ETH",
+      "side": "buy",
+      "krw": 1090000,
+      "amount": null
+    },
+    {
+      "market": "KRW-XRP",
+      "side": "buy",
+      "krw": 670000,
+      "amount": null
+    },
+    {
+      "market": "KRW-SOL",
+      "side": "buy",
+      "krw": 750000,
+      "amount": null
+    },
+    {
+      "market": "KRW-DOGE",
+      "side": "buy",
+      "krw": 840000,
+      "amount": null
+    }
+  ],
+  "results": [
+    {
+      "market": "KRW-BTC",
+      "side": "buy",
+      "amount": 0.01176238,
+      "krw": 1310000,
+      "status": "filled",
+      "orderId": 1,
+      "price": 111372000,
+      "error": null,
+      "cid": "20260919-1910/1"
+    },
+    {
+      "market": "KRW-ETH",
+      "side": "buy",
+      "amount": 0.30143805,
+      "krw": 1090000,
+      "status": "filled",
+      "orderId": 2,
+      "price": 3616000,
+      "error": null,
+      "cid": "20260919-1910/2"
+    },
+    {
+      "market": "KRW-XRP",
+      "side": "buy",
+      "amount": 345.89571502,
+      "krw": 670000,
+      "status": "filled",
+      "orderId": 3,
+      "price": 1937,
+      "error": null,
+      "cid": "20260919-1910/3"
+    },
+    {
+      "market": "KRW-SOL",
+      "side": "buy",
+      "amount": 4.89236791,
+      "krw": 750000,
+      "status": "filled",
+      "orderId": 4,
+      "price": 153300,
+      "error": null,
+      "cid": "20260919-1910/4"
+    },
+    {
+      "market": "KRW-DOGE",
+      "side": "buy",
+      "amount": null,
+      "krw": 840000,
+      "status": "rejected",
+      "reason": "회차당 주문 상한 4건 초과"
+    }
+  ],
+  "flags": [],
+  "rationale": "검산표 5개 항목 전부 통과 — 제안 목표 비중을 그대로 옮긴다. (1)편입: 5종목 모두 추세 down 아님·RSI<80·거래대금비≥0.5. (2)변동성 가중: 비중 순서(BTC>ETH>DOGE>SOL>XRP)가 일변동성 역순(1.84<2.21<2.85<3.19<3.59)과 정확히 일치. (3)총노출 46.6%≤60%·현금 53.4%≥40%, 공포탐욕 71(<80)·수익률 +0.00% 이므로 축소 배율 없음이 맞다. (4)신규 편입 5종목 모두 24h < 일변동성×3. (5)지표 시각 = 회차 기준 시각(19:10), 현금 1,000만 + 평가액 0 = 총자산 1,000만. 뉴스에 해킹·거래정지·디페그·거래금지 규제 없음(CFTC 규칙 제출·CLARITY 법 지연은 거래 금지가 아니다). 보조: 보유 코인이 없어 전량 매도 대상 없음, 최소 목표인 XRP 6.7%=67만원도 최소 거래 10만원 위, 현재 비중 0 과의 차이가 전부 밴드 3% 밖이라 5종목 모두 주문 대상이다. 다만 회차당 주문 상한이 4건이라 한 건은 다음 회차로 밀린다.",
+  "evidence": [
+    "snapshot 1절: 총자산 10,000,000원 = 현금 10,000,000원 + 코인 평가액 0원 · 시작 대비 +0.00% · 보유 코인 없음 (장부 정합 확인)",
+    "snapshot 2절 기준 시각 2026-09-19 19:10 KST = 회차 기준 시각과 동일 → 신선도 통과",
+    "snapshot 2절 추세: BTC up · ETH up · XRP up · SOL up · DOGE mixed → down 없음",
+    "snapshot 2절 RSI14: BTC 67 · ETH 72 · XRP 64 · SOL 59 · DOGE 50 → 전부 80 미만",
+    "snapshot 2절 거래대금비: BTC 2.14x · ETH 1.93x · XRP 1.50x · SOL 2.38x · DOGE 1.77x → 전부 0.5 이상",
+    "snapshot 2절 일변동성20: BTC +1.84% · ETH +2.21% · DOGE +2.85% · SOL +3.19% · XRP +3.59% — 제안 비중 13.1/10.9/8.4/7.5/6.7% 와 역순 일치",
+    "1÷일변동성 비중 재계산: BTC 28.0% · ETH 23.3% · XRP 14.4% · SOL 16.2% · DOGE 18.1% × 총노출 46.6% = 13.06/10.88/6.70/7.54/8.43% (제안과 일치)",
+    "가중평균 일변동성 재계산 2.58% · 변동성 목표 1.20% ÷ 2.58% = 46.5% → 제안 총노출 46.6% (상한 60% 이내)",
+    "snapshot 3절 공포탐욕 71 Greed → policy.md 2-4 의 ×0.7(≥80) 구간 아님 · 손실 사다리도 +0.00% 로 미적용 → 제안 메모의 '배율 없음' 확인",
+    "급등 편입 확인 24h vs 일변동성×3: BTC +3.37<5.52 · ETH +4.54<6.63 · XRP +5.62<10.77 · SOL +4.78<9.57 · DOGE +0.00<8.55 → 절반 축소 대상 없음",
+    "snapshot 4절 뉴스 16건: 숏스퀴즈 8만달러 회복·ETF 순유입·CFTC 규칙 제출·CLARITY 법 상원 좌절 — 해킹·출금중단·업비트 거래정지·디페그·거래금지 규제 제목 없음",
+    "snapshot 6절 상한: 회차당 최대 4건 (policy.json maxOrdersPerCycle 4) 인데 목표 비중은 5종목 → 이번 회차 주문 4건, 나머지 1건은 다음 회차"
+  ],
+  "confidence": 0.62,
+  "horizonHours": 24,
+  "invalidation": "BTC 또는 ETH 의 1시간봉 추세가 down 으로 바뀌거나, 공포탐욕 지수가 80 이상이 되어 총노출 배율 ×0.7 이 걸리거나, 어느 종목의 RSI14 가 80 이상이 되면 이 비중은 무효다.",
+  "risk": {
+    "equity": 10000000,
+    "startCash": 10000000,
+    "ddFromStart": 0,
+    "dd24h": null,
+    "buyHalt": false,
+    "turnoverTodayBefore": 0,
+    "turnoverTodayAfter": 3820000,
+    "cashAfter": 6180000,
+    "grossAfter": 3820000,
+    "cashRatioAfter": 0.618,
+    "grossRatioAfter": 0.382
+  },
+  "replay": true
+}

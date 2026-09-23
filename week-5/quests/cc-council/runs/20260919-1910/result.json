@@ -1,0 +1,83 @@
+{
+  "ts": "2026-09-19T10:10:00.000Z",
+  "kst": "2026-09-19 19:10:00",
+  "cycleId": "20260919-1910",
+  "agent": "cc-council",
+  "stance": "risk-on",
+  "status": "executed",
+  "dryRun": false,
+  "equityBefore": 10000000,
+  "equityAfter": 10000000,
+  "cashRatioAfter": 0.520000028,
+  "proposed": [
+    {
+      "market": "KRW-BTC",
+      "side": "buy",
+      "krw": 3000000,
+      "amount": null
+    },
+    {
+      "market": "KRW-SOL",
+      "side": "buy",
+      "krw": 1800000,
+      "amount": null
+    }
+  ],
+  "results": [
+    {
+      "market": "KRW-BTC",
+      "side": "buy",
+      "amount": 0.02693675,
+      "krw": 3000000,
+      "status": "filled",
+      "orderId": 1,
+      "price": 111372000,
+      "error": null,
+      "cid": "20260919-1910/1"
+    },
+    {
+      "market": "KRW-SOL",
+      "side": "buy",
+      "amount": 11.74168297,
+      "krw": 1800000,
+      "status": "filled",
+      "orderId": 2,
+      "price": 153300,
+      "error": null,
+      "cid": "20260919-1910/2"
+    }
+  ],
+  "flags": [],
+  "rationale": "첫 회차·현금 100%. 추세 up 4종목·공포탐욕 71(<80)·경성 위험 뉴스 없음이라 risk-on. 종목 대조: BTC 는 bear 의 숏스퀴즈 반박이 bull 과 같은 기사에서 나와 상쇄되지만 ETF 4.3억달러 순유입 논지에 bear 가 답하지 않아 채택(확신 4). SOL 은 bear 가 추세 근거를 반박하지 못하고 변동성 위험만 제기했고 그건 리스크 담당 상한이 이미 처리했다(확신 4). ETH 는 RSI 72·20d고점 위라는 같은 숫자를 양측이 정반대로 읽어 팽팽(확신 3) + 신규 편입 2종목 제한에 걸려 제외. XRP 는 bull 스스로 확신 2 이고 bear 의 30d −2.96%·4h −0.31%·거래대금비 최저 반박이 그대로 서서 0. DOGE 는 양측 일치로 0. 리스크 담당 상한(BTC 35% · SOL 23.5%)에 이견 없고 둘 다 상한 아래로 잡았다 — BTC 30%(숏스퀴즈 논지 미해소), SOL 18%(일변동성 3.19%). 총노출 48%·현금 52%. 24h 제동선은 스냅샷 −4% 대신 엄격한 policy.json −3.5% 를 따른다.",
+  "evidence": [
+    "[스냅샷 2절] BTC 추세 up · vsEMA20 +0.68% · vsEMA50 +2.30% · 24h +3.37% · 7d +5.98% · 거래대금비 2.14x · RSI14 67",
+    "[스냅샷 4절 블루밍비트 2026-09-19 13:30] \"美 비트코인 현물 ETF, 4.3억弗 순유입\" — bear 가 반박하지 않은 유일한 BTC 수요 근거",
+    "[스냅샷 4절 Investing.com 2026-09-19 11:55] \"Bitcoin jumps above $81k as short squeeze offsets rate and regulatory pressure\" — bull·bear 가 같이 인용한 기사라 방향 근거로는 상쇄 처리",
+    "[스냅샷 2절] SOL 7d +10.69% · 30d +19.11% · 거래대금비 2.38x · vsEMA50 +3.43% · 추세 up",
+    "[스냅샷 2절] SOL 일변동성20 3.19% · 20d고점比 −1.54% · 전일대비 −0.45% — bear 확신 4 의 근거, 비중을 상한 23.5% 아래 18% 로 낮춘 이유",
+    "[스냅샷 2절] ETH RSI14 72 · 20d고점比 +0.17% — bull(주도주)·bear(꼭지 매수)가 같은 숫자를 정반대로 읽어 팽팽",
+    "[스냅샷 2절] XRP 30d −2.96% · 4h −0.31% · 거래대금비 1.50x(5종 최저) · 20d고점比 −4.16% — bull 의 24h +5.62% 논지를 반박",
+    "[스냅샷 2절] DOGE 추세 mixed · vsEMA20 −0.28% · 30d −5.56% · 20d고점比 −8.46% · RSI14 50 — 양측 모두 상승 근거 없음에 동의",
+    "[스냅샷 3절] 공포탐욕 오늘 71 Greed(7일 71→56→50→51→69→57→61) · 펀딩비 BTC 0.0100% ETH 0.0100% · 김치프리미엄 BTC −1.27%",
+    "[risk-officer 상한표] risk-on 종목 상한 BTC 35.0% · ETH 33.9% · XRP 20.9% · SOL 23.5% · DOGE 26.3% · 총노출 75% · 거부권 없음",
+    "[risk-officer] 경성 위험 뉴스 없음 — CFTC 규칙 제정 접수·클래리티법 지연은 불확실성이며 경성 위험 목록에 없음",
+    "[스냅샷 1절] 총자산 10,000,000원 · 현금 100% · 보유 코인 없음 · 누적 주문 0건 · 손실 제동 미발동"
+  ],
+  "confidence": 0.6,
+  "horizonHours": 24,
+  "invalidation": "다음 회차에 (1) BTC vsEMA50 이 음수(1h 종가가 EMA50 아래) 또는 BTC 24h ≤ −4%, (2) SOL vsEMA50 이 음수 또는 SOL 7d ≤ +5%, (3) 공포탐욕 ≥ 80 — 셋 중 하나라도 충족되면 해당 논지를 폐기하고 그 종목을 다시 논증한다.",
+  "risk": {
+    "equity": 10000000,
+    "startCash": 10000000,
+    "ddFromStart": 0,
+    "dd24h": null,
+    "buyHalt": false,
+    "turnoverTodayBefore": 0,
+    "turnoverTodayAfter": 4800000,
+    "cashAfter": 5200000,
+    "grossAfter": 4800000,
+    "cashRatioAfter": 0.52,
+    "grossRatioAfter": 0.48
+  },
+  "replay": true
+}

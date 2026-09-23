@@ -1,0 +1,21 @@
+{
+  "runtime": "claude-code",
+  "exitCode": 0,
+  "wallSeconds": 270,
+  "sessionId": "3e1978ff-15aa-43ec-8a6e-97eb4e1d8bad",
+  "costUsd": 1.4015170000000001,
+  "turns": 10,
+  "models": [
+    "claude-opus-5"
+  ],
+  "denials": [
+    "Bash"
+  ],
+  "subagents": {
+    "bull": 1,
+    "bear": 1,
+    "risk-officer": 1
+  },
+  "result": "검증 통과했습니다 (`exit=0`).\n\n**자세 · neutral** — 추세 up 3종목(BTC·ETH·XRP)·공포탐욕 78(<80)로 risk-on 지표 조건은 충족했지만, 첫 조건인 \"강세가 약세 반박을 견딤\"이 5종목 중 BTC 하나에서만 성립해 올리지 않았습니다. 경성 위험 뉴스 없음, 시작 대비 +0.33%로 risk-off도 아닙니다. 지난 회차 무효화 조건 6개는 모두 미충족.\n\n**목표 비중** — BTC 25%(현 24.9%, 밴드 안이라 주문 없음) · ETH 12.5%(19.98%에서 절반 축소 → ETH 매도 약 752,679원 1건) · XRP·SOL·DOGE 0. 총노출 44.9%→37.4%, 현금 62.6%. 리스크 담당의 neutral 상한(BTC 25·ETH 25·XRP 19.2·SOL 22·DOGE 19.3·총 45)을 전부 지켰고 거부권은 없었으며 이견도 없습니다.\n\n**채택한 논지** — BTC는 20d고점比·7d 급등을 양측이 같이 써 상쇄되지만 ETF 약 10억달러 순유입과 vsEMA20·vsEMA50 동시 양전에 bear가 답하지 않아 bull 확신 4를 상단으로 인정. ETH는 bear의 `vsEMA20 +0.",
+  "error": null
+}

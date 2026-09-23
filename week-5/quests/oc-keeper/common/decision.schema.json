@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "리그 에이전트 결정 파일 (runs/<cycleId>/decision.json)",
+  "description": "LLM 이 한 회차에 내는 유일한 산출물. 숫자는 스냅샷에서 가져온 값만 쓰고, 주문의 실제 수량·검증·체결은 common/execute.mjs 가 한다. orders 와 targetWeights 중 하나만 쓴다(둘 다 비우면 관망).",
+  "type": "object",
+  "required": ["cycleId", "stance", "rationale", "evidence", "confidence"],
+  "additionalProperties": false,
+  "properties": {
+    "cycleId": { "type": "string", "pattern": "^\\d{8}-\\d{4}$", "description": "스냅샷 파일의 cycleId 와 같아야 한다" },
+    "stance": { "type": "string", "enum": ["risk-on", "neutral", "risk-off", "hold"], "description": "이번 회차의 자세. hold 는 '판단 후 관망'이다(실행 실패와 구분)" },
+    "orders": {
+      "type": "array", "maxItems": 5,
+      "items": {
+        "type": "object", "required": ["market", "side", "reason"], "additionalProperties": false,
+        "properties": {
+          "market": { "type": "string", "pattern": "^KRW-[A-Z0-9]{2,20}$" },
+          "side": { "type": "string", "enum": ["buy", "sell"] },
+          "krw": { "type": "number", "exclusiveMinimum": 0, "description": "매수 금액(원). 매도에도 쓸 수 있다" },
+          "amount": { "type": "number", "exclusiveMinimum": 0, "description": "코인 수량 (매도에 주로 사용)" },
+          "fraction": { "type": "number", "exclusiveMinimum": 0, "maximum": 1, "description": "보유 수량의 비율 (매도 전용) — 0.5 = 절반" },
+          "reason": { "type": "string", "maxLength": 200, "description": "주문 메모에 그대로 남는 한 줄 근거" }
+        }
+      }
+    },
+    "targetWeights": {
+      "type": "object", "description": "종목별 목표 비중(총자산 대비 0~1). 밴드(policy.rebalanceBand) 밖의 차이만 주문으로 바뀐다. 목록에 없는 보유 종목은 0 으로 본다",
+      "patternProperties": { "^KRW-[A-Z0-9]{2,20}$": { "type": "number", "minimum": 0, "maximum": 1 } },
+      "additionalProperties": false
+    },
+    "rationale": { "type": "string", "minLength": 20, "maxLength": 1000, "description": "왜 이 자세·주문인지. 결과가 나온 뒤 고쳐 쓰지 않는다" },
+    "evidence": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "type": "string", "maxLength": 300 }, "description": "스냅샷의 어떤 숫자·제목을 근거로 썼는지 (출처와 시각 포함)" },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "horizonHours": { "type": "number", "minimum": 1, "maximum": 168, "description": "이 판단이 유효하다고 보는 시간" },
+    "invalidation": { "type": "string", "maxLength": 300, "description": "이 판단이 틀렸다고 인정할 조건 (예: BTC 가 1h EMA50 아래로 마감)" },
+    "memoryNote": { "type": "string", "maxLength": 400, "description": "오늘 일지에 남길 한 줄" },
+    "lessonCandidate": { "type": ["string", "null"], "maxLength": 400, "description": "다음 회차에 재사용할 교훈 후보. 정책 변경이 아니다 — lessons.md 후보 절에만 쌓인다" }
+  }
+}

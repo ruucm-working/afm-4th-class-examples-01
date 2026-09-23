@@ -1,0 +1,17 @@
+{
+  "id": "oc-keeper",
+  "runtime": "openclaw",
+  "style": "systematic",
+  "markets": ["KRW-BTC", "KRW-ETH", "KRW-XRP", "KRW-SOL", "KRW-DOGE"],
+  "maxWeightPerMarket": 0.30,
+  "maxGrossExposure": 0.60,
+  "cashFloor": 0.40,
+  "maxOrdersPerCycle": 4,
+  "maxTurnoverPerDay": 0.50,
+  "minOrderKRW": 5000,
+  "minTradeKRW": 100000,
+  "rebalanceBand": 0.03,
+  "drawdownHaltPct": 0.06,
+  "dailyLossHaltPct": 0.03,
+  "venueUrl": "http://127.0.0.1:6104"
+}

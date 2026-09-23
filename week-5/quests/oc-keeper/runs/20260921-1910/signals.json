@@ -1,0 +1,122 @@
+{
+  "cycleId": "20260921-1910",
+  "agent": "oc-keeper",
+  "strategy": "keeper",
+  "kst": "2026-09-21 19:10:00",
+  "params": {
+    "targetDailyVol": 0.012,
+    "minWeight": 0.05,
+    "greedCut": {
+      "80": 0.7,
+      "90": 0.5
+    },
+    "fearBoost": 1,
+    "ddLadder": {
+      "-0.02": 0.6,
+      "-0.04": 0.3
+    },
+    "maxRsi": 80,
+    "minVolumeRatio": 0.5,
+    "momentumWeights": {
+      "ret7d": 0.5,
+      "ret30d": 0.3,
+      "ret24h": 0.2
+    },
+    "maxPositions": 3,
+    "allowMixed": true
+  },
+  "equity": 10111100.28,
+  "ddFromStart": 0.011110027999999827,
+  "fearGreed": 70,
+  "rows": [
+    {
+      "market": "KRW-BTC",
+      "trend": "up",
+      "ret24h": 0.04130699474803268,
+      "ret7d": 0.0843544495434545,
+      "ret30d": 0.0736771098785789,
+      "rsi": 81.25675345812962,
+      "vol": 0.019142572508290233,
+      "volumeRatio": 1.5270218689368305,
+      "eligible": false,
+      "why": [
+        "RSI 81 ≥ 80 과열"
+      ]
+    },
+    {
+      "market": "KRW-ETH",
+      "trend": "up",
+      "ret24h": 0.04680851063829783,
+      "ret7d": 0.08625257580217838,
+      "ret30d": 0.09107037256061501,
+      "rsi": 69.25194654097454,
+      "vol": 0.02176797814418196,
+      "volumeRatio": 1.5478942560825066,
+      "eligible": true,
+      "why": [
+        "적격"
+      ],
+      "rawWeight": 0.33247768338933653,
+      "weight": 0.138
+    },
+    {
+      "market": "KRW-XRP",
+      "trend": "up",
+      "ret24h": 0.05776364599894013,
+      "ret7d": 0.03850156087408951,
+      "ret30d": -0.043144774688398835,
+      "rsi": 73.47028133453638,
+      "vol": 0.03622091912969103,
+      "volumeRatio": 0.94177452677967,
+      "eligible": true,
+      "why": [
+        "적격"
+      ],
+      "rawWeight": 0.1998117971422406,
+      "weight": 0.083
+    },
+    {
+      "market": "KRW-SOL",
+      "trend": "up",
+      "ret24h": 0.05870445344129549,
+      "ret7d": 0.13367052023121384,
+      "ret30d": 0.1977099236641222,
+      "rsi": 73.19570063220783,
+      "vol": 0.031938960767023815,
+      "volumeRatio": 1.316430334619039,
+      "eligible": true,
+      "why": [
+        "적격"
+      ],
+      "rawWeight": 0.226599951020314,
+      "weight": 0.094
+    },
+    {
+      "market": "KRW-DOGE",
+      "trend": "up",
+      "ret24h": 0.06837606837606836,
+      "ret7d": 0.09649122807017552,
+      "ret30d": -0.0234375,
+      "rsi": 67.61095624191017,
+      "vol": 0.030016796824917813,
+      "volumeRatio": 1.8939726606921046,
+      "eligible": true,
+      "why": [
+        "적격"
+      ],
+      "rawWeight": 0.241110568448109,
+      "weight": 0.1
+    }
+  ],
+  "notes": [
+    "변동성 목표 +1.20% ÷ 가중평균 일변동성 +2.89% → 총노출 +41% (상한 +60%)"
+  ],
+  "targetWeights": {
+    "KRW-ETH": 0.138,
+    "KRW-XRP": 0.083,
+    "KRW-SOL": 0.094,
+    "KRW-DOGE": 0.1
+  },
+  "grossTarget": 0.415,
+  "cashTarget": 0.585
+}

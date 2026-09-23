@@ -1,0 +1,17 @@
+{
+  "id": "cc-council",
+  "runtime": "claude-code",
+  "style": "discretionary",
+  "markets": ["KRW-BTC", "KRW-ETH", "KRW-XRP", "KRW-SOL", "KRW-DOGE"],
+  "maxWeightPerMarket": 0.35,
+  "maxGrossExposure": 0.75,
+  "cashFloor": 0.25,
+  "maxOrdersPerCycle": 3,
+  "maxTurnoverPerDay": 0.50,
+  "minOrderKRW": 5000,
+  "minTradeKRW": 150000,
+  "rebalanceBand": 0.05,
+  "drawdownHaltPct": 0.07,
+  "dailyLossHaltPct": 0.035,
+  "venueUrl": "http://127.0.0.1:6102"
+}

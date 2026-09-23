@@ -1,0 +1,28 @@
+{
+  "runtime": "openclaw-agent-exec",
+  "exitCode": 0,
+  "wallSeconds": 87,
+  "status": "ok",
+  "sessionId": "ed9e09b7-6875-40f4-9fe1-74c2bb5eed86",
+  "costUsd": null,
+  "usage": {
+    "input": 2,
+    "output": 8,
+    "cacheRead": 78526,
+    "cacheWrite": 2635
+  },
+  "assistantTurns": null,
+  "provider": "claude-cli",
+  "model": "claude-opus-5",
+  "tools": {
+    "calls": 12,
+    "tools": [
+      "Read",
+      "Bash",
+      "Write"
+    ],
+    "failures": 0
+  },
+  "result": "I'll start by reading the procedure skill and the cycle inputs.\n\n검산 5개 항목을 스냅샷 숫자로 확인했다. 결과를 정리해 `decision.json` 을 쓴다.\n\n| # | 항목 | 근거 | 결과 |\n|---|---|---|---|\n| 1 | 편입 판정 | BTC RSI 81≥80→0%, 나머지 4종 추세 up·RSI 68~73<80·거래대금비 0.94~1.89≥0.5 | 통과 |\n| 2 | 변동성 가중 | 비중 ETH13.8>DOGE10.0>SOL9.4>XRP8.3 ↔ 일변동성 2.18<3.00<3.19<3.62 (역순 일치) | 통과 |\n| 3 | 총노출 | 41.5%≤60% · 현금 58.5%≥40% · 공포탐욕 70<80, 수익률 +1.11%>−2% → 배율 없음 · 1.20÷2.89=41.5% 재계산 일치 | 통과 |\n| 4 | 급등 편입 | 신규 편입 DOGE 24h +6.84% < 일변동성 3.00×3=9.00% | 통과 |\n| 5 | 신선도·장부 | 지표 시각 = 기준 19:10 · 5,859,381+4,251,720=10,111,101 vs 10,111,100 (반올림 1원) | 통과 |\n\n",
+  "error": null
+}
