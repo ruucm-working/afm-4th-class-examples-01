@@ -1,0 +1,15 @@
+{
+  "model": "openai/gpt-image-2/edit",
+  "request_id": "01a13558-1949-7270-abeb-b103211c8f60",
+  "quality": "high",
+  "size": "1024x1536",
+  "refs": [
+    "odyssey-images/stills/49-penelope-bow.jpg",
+    "odyssey-images/stills/48-penelope-closeup.jpg",
+    "odyssey-images/stills/45-telemachus-sea.jpg",
+    "odyssey-images/stills/55-cliff-fortress.jpg",
+    "odyssey-images/stills/62-ship-storm.jpg"
+  ],
+  "prompt": "Create an original theatrical one-sheet movie poster (vertical 2:3) for Christopher Nolan's\nepic film \"The Odyssey\" (2026), shot entirely on IMAX 70mm film, for the KOREAN release.\n\nThe attached images are frames from the film itself. Use them as the reference for the\nactors' faces and likenesses, costumes, props, ships, locations, lighting, color grading and\nfilm grain — keep everything consistent with them. Build a NEW poster composition; do not\nsimply crop or repeat one still. Photoreal, cinematic, rich 70mm film grain, no painterly or\nCGI illustration look, no frames or borders.\n\nKorean typography, all text sharp, correctly spelled and legible (Hangul exactly as given):\n- Main title, large: \"오디세이\" — bold, classical, chiseled serif Hangul letterforms with a subtle\n  bronze/stone texture. A small spaced Roman-capital line \"THE ODYSSEY\" sits just above it.\n- Tagline, small, near the top: \"신에 맞서다\"\n- Near the bottom: \"크리스토퍼 놀란 감독 작품\" and below it \"8월 5일 대개봉\"\n- Very small at the very bottom: \"IMAX 70MM 필름 촬영\"\nNo other text at all: no credits block, no actor names, no studio or rating logos, no watermark.\n\nConcept \"Ithaca waits\". Center: Penelope (the dark-haired woman with the high braided updo, gold\ncollar and deep blue gown from the stills), waist-up, facing the viewer with a resolute stare,\nholding the great curved horn bow horizontally across her body, lit by warm palace firelight.\nOver her shoulder, slightly behind and smaller, the young man Telemachus (curly dark hair, dark\ncloak) looks out toward the sea. Above them, fading into the sky: the stone fortress of Ithaca\non its high white limestone cliff under a heavy storm sky. At the bottom, a dark oared war ship\nfights a stormy, deep-teal sea. Palette: firelit gold and amber against deep teal and slate\nblue.",
+  "seconds": 99
+}

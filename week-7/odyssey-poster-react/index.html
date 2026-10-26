@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>오디세이 포스터 스튜디오</title>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <!-- 모든 CDN 은 버전 고정. Babel 은 7.x (8.x 는 인라인 text/babel 이 깨진다) -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.9/babel.min.js"></script>
+  <!-- 포스터 DOM(배경 + 글자 레이어)을 PNG 한 장으로 합치는 데 쓴다 -->
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+  <style>
+    /* 제목의 청동 질감: 그라데이션을 글자 모양으로 잘라 낸다 */
+    .bronze-text {
+      background: linear-gradient(180deg, #fff1cf 0%, #e8c27a 30%, #b07a36 52%, #6e4316 66%, #c9964f 82%, #f3d9a0 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .layer { transition: transform .7s cubic-bezier(.2,.7,.2,1), opacity .3s, outline-color .3s; }
+    .checker {
+      background-color: #1b1d21;
+      background-image: conic-gradient(#25282d 25%, transparent 0 50%, #25282d 0 75%, transparent 0);
+      background-size: 32px 32px;
+    }
+  </style>
+</head>
+<body class="bg-[#0b0d10]">
+  <div id="root"></div>
+  <script type="text/babel">
+    // ========================================
+    // React Hooks
+    // ========================================
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+    // ========================================
+    // 📚 포스터 데이터 — 문구는 week-7/오디세이-영화소개.md 의 사실만 쓴다
+    // ========================================
+    const ARTBOARD = { w: 1024, h: 1536 }; // 포스터 좌표계(CSS px). 배경은 1536x2304 이라 1.5배로 저장해도 선명하다
+    const EXPORT_RATIO = 1.5;
+
+    const COPY = {
+      cast: ['맷 데이먼', '톰 홀랜드', '앤 해서웨이', '로버트 패틴슨', '루피타 뇽오', '젠데이아', '샤를리즈 테론'],
+      tagline: '신에 맞서다',
+      director: '크리스토퍼 놀란 감독 작품',
+      titleEn: 'THE ODYSSEY',
+      title: '오디세이',
+      release: '8월 5일 대개봉',
+      format: 'IMAX 70MM 필름 촬영',
+      rating: '15',
+      billing: [
+        [['', '유니버설 픽쳐스 제공'], ['', 'SYNCOPY 제작'], ['', '크리스토퍼 놀란 감독 작품']],
+        [['', '맷 데이먼   톰 홀랜드   앤 해서웨이   로버트 패틴슨   루피타 뇽오   젠데이아   샤를리즈 테론']],
+        [['촬영', '호이테 반 호이테마'], ['편집', '제니퍼 레임'], ['음악', '루드윅 고란손'], ['미술', '루스 드 종'], ['의상', '엘렌 미로즈닉']],
+        [['제작', '엠마 토머스  크리스토퍼 놀란'], ['원작', '호메로스 『오디세이아』'], ['각본·감독', '크리스토퍼 놀란']],
+        [['배급', '유니버설픽쳐스'], ['', '15세 관람가'], ['', '173분']],
+      ],
+      note: '팬 메이드 포스터 · 수업 예제',
+    };
+
+    // 배경은 GPT Image 2(fal openai/gpt-image-2/edit)가 장면 스틸만 보고 그린 '글자 없는' 그림.
+    // 콘셉트마다 배경 밝기에 맞춰 글자 색·그라데이션·제목 크기를 정한다.
+    const CONCEPTS = [
+      {
+        id: 'A', name: '귀향', bg: 'bg/A-homecoming.webp',
+        desc: '수평선을 보는 오디세우스, 소용돌이로 향하는 붉은 돛배',
+        theme: { ink: '#f5ead6', topInk: '#f5ead6', accent: '#f2a65e',
+                 scrimTop: 'rgba(4,10,22,0.55)', scrimBottom: 'rgba(3,8,17,0.94)', titleSize: 200 },
+      },
+      {
+        id: 'B', name: '목마', bg: 'bg/B-horse.webp',
+        desc: '파도 속에서 솟는 청동 목마와 밧줄을 끄는 군대',
+        theme: { ink: '#f3e4c4', topInk: '#2a1b0b', accent: '#e3b76d', topAccent: '#5b3712',
+                 scrimTop: 'rgba(255,240,210,0.0)', scrimBottom: 'rgba(18,11,4,0.95)', titleSize: 200 },
+      },
+      {
+        id: 'C', name: '이타카', bg: 'bg/C-ithaca.webp',
+        desc: '활을 든 페넬로페와 텔레마코스, 절벽 위 이타카',
+        theme: { ink: '#eef0ea', topInk: '#eef0ea', accent: '#e2bb6a',
+                 scrimTop: 'rgba(5,12,16,0.6)', scrimBottom: 'rgba(5,13,18,0.95)', titleSize: 200 },
+      },
+      {
+        id: 'D', name: '앙상블', bg: 'bg/D-ensemble.webp',
+        desc: '오디세우스·페넬로페·텔레마코스·안티노오스·아테나',
+        theme: { ink: '#f6eadb', topInk: '#f6eadb', accent: '#e8603f',
+                 scrimTop: 'rgba(6,3,3,0.6)', scrimBottom: 'rgba(6,4,4,0.95)', titleSize: 200 },
+      },
+    ];
+
+    const LAYERS = [
+      { id: 'bg', label: '배경', sub: 'GPT Image 2 · 글자 없음' },
+      { id: 'scrim', label: '그라데이션', sub: '글자 가독성' },
+      { id: 'top', label: '출연진 · 태그라인', sub: 'React 레이어' },
+      { id: 'title', label: '타이틀', sub: 'React 레이어' },
+      { id: 'release', label: '개봉일 · 등급', sub: 'React 레이어' },
+      { id: 'billing', label: '빌링 블록', sub: 'React 레이어' },
+      { id: 'note', label: '팬 메이드 표기', sub: 'React 레이어' },
+    ];
+
+    // ========================================
+    // 🔤 웹폰트 — 포스터에 쓰는 글자만 잘라 받는다(Google Fonts text= 서브셋)
+    //   한글 폰트가 수십 KB 로 줄어 PNG 로 합칠 때도 빠르게 들어간다
+    // ========================================
+    const GLYPHS = Array.from(new Set(JSON.stringify(COPY) + '0123456789')).join('');
+    const FONT_SPECS = [
+      '500 20px "Cinzel"', '700 20px "Cinzel"',
+      '400 20px "Noto Sans KR"', '500 20px "Noto Sans KR"', '700 20px "Noto Sans KR"',
+      '500 20px "Noto Serif KR"', '700 20px "Noto Serif KR"', '900 20px "Noto Serif KR"',
+    ];
+
+    function loadPosterFonts() {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.crossOrigin = 'anonymous';
+      link.href = 'https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700'
+        + '&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@500;700;900'
+        + '&display=block&text=' + encodeURIComponent(GLYPHS);
+      const sheet = new Promise((resolve) => { link.onload = resolve; link.onerror = resolve; });
+      document.head.appendChild(link);
+      const load = sheet
+        .then(() => Promise.all(FONT_SPECS.map((f) => document.fonts.load(f, GLYPHS))))
+        .then(() => document.fonts.ready)
+        .catch(() => {});
+      const timeout = new Promise((resolve) => setTimeout(resolve, 10000)); // 폰트가 막혀도 10초 뒤엔 그린다
+      return Promise.race([load, timeout]);
+    }
+    const fontsPromise = loadPosterFonts();
+
+    function useFontsReady() {
+      const [ready, setReady] = useState(false);
+      useEffect(() => { fontsPromise.then(() => setReady(true)); }, []);
+      return ready;
+    }
+
+    const serif = "'Noto Serif KR', serif";
+    const sans = "'Noto Sans KR', sans-serif";
+    const roman = "'Cinzel', 'Noto Serif KR', serif";
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+    function Button({ children, variant = 'primary', size = 'md', disabled = false, onClick, className = '', ...rest }) {
+      const variants = {
+        primary: 'bg-amber-500 text-stone-950 hover:bg-amber-400',
+        secondary: 'bg-white/10 text-stone-100 hover:bg-white/15',
+        ghost: 'text-stone-300 hover:bg-white/5',
+      };
+      const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-4 py-2.5 text-sm', lg: 'px-5 py-3 text-base' };
+      return (
+        <button
+          type="button"
+          onClick={onClick}
+          disabled={disabled}
+          className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-40 disabled:cursor-not-allowed
+            ${variants[variant]} ${sizes[size]} ${className}`}
+          {...rest}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function Switch({ checked, onChange, label, sub }) {
+      return (
+        <label className="flex items-center justify-between gap-3 py-2 cursor-pointer select-none">
+          <span className="min-w-0">
+            <span className="block text-sm text-stone-100">{label}</span>
+            {sub && <span className="block text-xs text-stone-500">{sub}</span>}
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            aria-label={label}
+            onClick={() => onChange(!checked)}
+            className={`relative h-6 w-11 shrink-0 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400
+              ${checked ? 'bg-amber-500' : 'bg-white/15'}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition ${checked ? 'translate-x-5' : ''}`} />
+          </button>
+        </label>
+      );
+    }
+
+    function Card({ title, children, className = '' }) {
+      return (
+        <section className={`rounded-2xl border border-white/10 bg-white/[0.03] p-4 ${className}`}>
+          {title && <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">{title}</h2>}
+          {children}
+        </section>
+      );
+    }
+
+    // ========================================
+    // 🔀 Router — #/poster/:id (스튜디오) · #/raw/:id (포스터만, PNG 저장용)
+    // ========================================
+    function useHashPath() {
+      const read = () => window.location.hash.replace(/^#/, '') || '/';
+      const [path, setPath] = useState(read);
+      useEffect(() => {
+        const onChange = () => setPath(read());
+        window.addEventListener('hashchange', onChange);
+        return () => window.removeEventListener('hashchange', onChange);
+      }, []);
+      return path;
+    }
+
+    function matchRoute(pattern, path) {
+      const p = pattern.split('/'), s = path.split('/');
+      if (p.length !== s.length) return null;
+      const params = {};
+      for (let i = 0; i < p.length; i++) {
+        if (p[i].startsWith(':')) params[p[i].slice(1)] = decodeURIComponent(s[i]);
+        else if (p[i] !== s[i]) return null;
+      }
+      return params;
+    }
+
+    // ========================================
+    // 🖼️ Poster — 배경 이미지 + React 글자 레이어를 한 판(1024x1536) 위에 겹친다
+    // ========================================
+    function Layer({ id, index, exploded, visible, children, style }) {
+      return (
+        <div
+          data-layer={id}
+          className="layer absolute inset-0"
+          style={{
+            transform: exploded ? `translateZ(${index * 90}px)` : 'none',
+            opacity: visible ? 1 : 0,
+            outline: exploded ? '2px dashed rgba(255,255,255,0.35)' : '2px dashed transparent',
+            pointerEvents: 'none',
+            ...style,
+          }}
+        >
+          {children}
+        </div>
+      );
+    }
+
+    function CastLine({ ink }) {
+      return (
+        <div style={{ position: 'absolute', top: 44, left: 0, right: 0, display: 'flex', justifyContent: 'center',
+                      gap: 26, fontFamily: sans, fontWeight: 500, fontSize: 17, letterSpacing: '0.14em', color: ink }}>
+          {COPY.cast.map((n) => <span key={n}>{n}</span>)}
+        </div>
+      );
+    }
+
+    function Tagline({ color }) {
+      const rule = { width: 70, height: 1, background: color, opacity: 0.7 };
+      return (
+        <div style={{ position: 'absolute', top: 98, left: 0, right: 0, display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', gap: 22 }}>
+          <span style={rule} />
+          <span style={{ fontFamily: serif, fontWeight: 700, fontSize: 30, letterSpacing: '0.55em',
+                         marginRight: '-0.55em', color }}>
+            {COPY.tagline}
+          </span>
+          <span style={rule} />
+        </div>
+      );
+    }
+
+    function TitleBlock({ theme }) {
+      return (
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 292, display: 'flex', flexDirection: 'column',
+                      alignItems: 'center' }}>
+          <div style={{ fontFamily: serif, fontWeight: 700, fontSize: 22, letterSpacing: '0.42em', marginRight: '-0.42em',
+                        color: theme.ink, textShadow: '0 2px 10px rgba(0,0,0,0.6)' }}>
+            {COPY.director}
+          </div>
+          <div style={{ marginTop: 26, fontFamily: roman, fontWeight: 700, fontSize: 30, letterSpacing: '0.62em',
+                        marginRight: '-0.62em', color: theme.accent, textShadow: '0 2px 12px rgba(0,0,0,0.7)' }}>
+            {COPY.titleEn}
+          </div>
+          <div
+            className="bronze-text"
+            style={{ marginTop: 6, fontFamily: serif, fontWeight: 900, fontSize: theme.titleSize, lineHeight: 1.08,
+                     letterSpacing: '0.06em', marginRight: '-0.06em',
+                     filter: 'drop-shadow(0 3px 0 rgba(50,28,8,0.95)) drop-shadow(0 14px 28px rgba(0,0,0,0.75))' }}
+          >
+            {COPY.title}
+          </div>
+        </div>
+      );
+    }
+
+    function ReleaseBlock({ theme }) {
+      return (
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 170, display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', gap: 16 }}>
+          <div style={{ fontFamily: serif, fontWeight: 900, fontSize: 56, letterSpacing: '0.08em', marginRight: '-0.08em',
+                        color: theme.ink, lineHeight: 1, textShadow: '0 3px 16px rgba(0,0,0,0.7)' }}>
+            {COPY.release}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ width: 34, height: 34, borderRadius: 999, border: `2px solid ${theme.accent}`, display: 'flex',
+                           alignItems: 'center', justifyContent: 'center', fontFamily: sans, fontWeight: 700, fontSize: 16,
+                           color: theme.accent }}>
+              {COPY.rating}
+            </span>
+            <span style={{ fontFamily: sans, fontWeight: 500, fontSize: 18, letterSpacing: '0.34em', color: theme.ink,
+                           opacity: 0.9 }}>
+              {COPY.format}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    function BillingBlock({ theme }) {
+      return (
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 40, display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', gap: 3, color: theme.ink, opacity: 0.78 }}>
+          {COPY.billing.map((line, i) => (
+            <div key={i} style={{ display: 'flex', gap: 18, fontFamily: sans, transform: 'scaleX(0.88)', whiteSpace: 'pre' }}>
+              {line.map(([role, name]) => (
+                <span key={role + name} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+                  {role && <span style={{ fontSize: 10.5, fontWeight: 400, letterSpacing: '0.08em', opacity: 0.8 }}>{role}</span>}
+                  <span style={{ fontSize: i === 1 ? 15 : 13, fontWeight: i === 1 ? 700 : 500, letterSpacing: '0.04em' }}>{name}</span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    const Poster = React.forwardRef(function Poster({ concept, visible, exploded = false, onBgLoad, onBgError }, ref) {
+      const t = concept.theme;
+      const layers = {
+        bg: (
+          <img
+            src={concept.bg}
+            alt=""
+            onLoad={onBgLoad}
+            onError={onBgError}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        ),
+        scrim: (
+          <div style={{ position: 'absolute', inset: 0,
+                        background: `linear-gradient(to bottom, ${t.scrimTop} 0%, transparent 15%),
+                                     linear-gradient(to top, ${t.scrimBottom} 0%, ${t.scrimBottom} 14%, transparent 44%)` }} />
+        ),
+        top: (
+          <>
+            <CastLine ink={t.topInk} />
+            <Tagline color={t.topAccent || t.accent} />
+          </>
+        ),
+        title: <TitleBlock theme={t} />,
+        release: <ReleaseBlock theme={t} />,
+        billing: <BillingBlock theme={t} />,
+        note: (
+          <div style={{ position: 'absolute', right: 18, bottom: 12, fontFamily: sans, fontSize: 10, letterSpacing: '0.1em',
+                        color: t.ink, opacity: 0.45 }}>
+            {COPY.note}
+          </div>
+        ),
+      };
+      return (
+        <div
+          ref={ref}
+          role="img"
+          aria-label={`오디세이 포스터 — ${concept.name}. ${COPY.tagline}, ${COPY.release}`}
+          style={{ position: 'relative', width: ARTBOARD.w, height: ARTBOARD.h, background: '#000',
+                   overflow: exploded ? 'visible' : 'hidden', transformStyle: 'preserve-3d' }}
+        >
+          {LAYERS.map((L, i) => (
+            <Layer key={L.id} id={L.id} index={i} exploded={exploded} visible={visible[L.id]}>
+              {layers[L.id]}
+            </Layer>
+          ))}
+        </div>
+      );
+    });
+
+    // 화면 폭에 맞춰 1024x1536 판을 축소해 보여 준다(판 자체 좌표는 그대로)
+    function PosterStage({ concept, visible, exploded, posterRef, onBgLoad, onBgError, dim }) {
+      const boxRef = useRef(null);
+      const [scale, setScale] = useState(0.4);
+      useEffect(() => {
+        const el = boxRef.current;
+        const measure = () => {
+          const w = el.clientWidth;
+          const maxH = window.innerWidth >= 1024 ? window.innerHeight - 120 : Infinity;
+          setScale(Math.min(w / ARTBOARD.w, maxH / ARTBOARD.h));
+        };
+        measure();
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        window.addEventListener('resize', measure);
+        return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+      }, []);
+      const s = exploded ? scale * 0.72 : scale;
+      return (
+        <div ref={boxRef} className="w-full">
+          <div
+            className={`mx-auto ${exploded ? 'checker rounded-xl' : ''}`}
+            style={{ width: ARTBOARD.w * scale, height: ARTBOARD.h * scale, perspective: 2600 }}
+          >
+            <div
+              className="layer"
+              style={{
+                width: ARTBOARD.w, height: ARTBOARD.h, transformOrigin: '0 0', transformStyle: 'preserve-3d',
+                transform: exploded
+                  ? `translate(${ARTBOARD.w * scale * 0.2}px, ${ARTBOARD.h * scale * 0.1}px) scale(${s}) rotateX(12deg) rotateY(-34deg)`
+                  : `scale(${s})`,
+                opacity: dim ? 0 : 1,
+              }}
+            >
+              <Poster ref={posterRef} concept={concept} visible={visible} exploded={exploded}
+                      onBgLoad={onBgLoad} onBgError={onBgError} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Pages
+    // ========================================
+    const ALL_ON = Object.fromEntries(LAYERS.map((l) => [l.id, true]));
+
+    function StudioPage({ conceptId }) {
+      const concept = CONCEPTS.find((c) => c.id === conceptId) || CONCEPTS[0];
+      const fontsReady = useFontsReady();
+      const [visible, setVisible] = useState(ALL_ON);
+      const [exploded, setExploded] = useState(false);
+      const [bgState, setBgState] = useState('loading'); // loading | ok | error
+      const [saving, setSaving] = useState(false);
+      const [message, setMessage] = useState('');
+      const posterRef = useRef(null);
+
+      useEffect(() => { setBgState('loading'); setMessage(''); }, [concept.id]);
+
+      const toggle = (id) => (on) => setVisible((v) => ({ ...v, [id]: on }));
+      const textOnly = !visible.bg && !visible.scrim;
+
+      const savePng = useCallback(async () => {
+        if (!posterRef.current) return;
+        setSaving(true);
+        setMessage('');
+        try {
+          const dataUrl = await window.htmlToImage.toPng(posterRef.current, {
+            width: ARTBOARD.w, height: ARTBOARD.h, pixelRatio: EXPORT_RATIO, style: { transform: 'none' },
+          });
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `odyssey-poster-${concept.id}.png`;
+          a.click();
+          setMessage(`${ARTBOARD.w * EXPORT_RATIO}×${ARTBOARD.h * EXPORT_RATIO} PNG 로 저장했습니다.`);
+        } catch (e) {
+          setMessage('저장에 실패했습니다. 로컬 서버(npx serve .)로 열었는지 확인하세요.');
+          console.error(e);
+        } finally {
+          setSaving(false);
+        }
+      }, [concept.id]);
+
+      return (
+        <div className="min-h-screen text-stone-200">
+          <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/10 px-4 py-4 lg:px-8">
+            <div>
+              <h1 className="text-lg font-bold tracking-tight text-stone-50">오디세이 포스터 스튜디오</h1>
+              <p className="text-xs text-stone-400">GPT Image 2 가 그린 글자 없는 배경 + React 로 그린 한국어 타이포 레이어 → PNG 한 장</p>
+            </div>
+            <a href={`#/raw/${concept.id}`} className="text-xs text-stone-400 underline-offset-4 hover:text-amber-300 hover:underline">
+              포스터만 보기 ↗
+            </a>
+          </header>
+
+          {window.location.protocol === 'file:' && (
+            <div role="alert" className="mx-4 mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 lg:mx-8">
+              파일을 바로 열었습니다. 배경과 PNG 저장이 제대로 되려면 이 폴더에서 <code>npx serve .</code> 로 열어 주세요.
+            </div>
+          )}
+
+          <main className="grid gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-8">
+            <section aria-label="포스터 미리보기" className="relative">
+              {(!fontsReady || bgState === 'loading') && bgState !== 'error' && (
+                <div className="absolute inset-x-0 top-24 z-10 text-center text-sm text-stone-400" aria-live="polite">
+                  배경과 폰트를 불러오는 중…
+                </div>
+              )}
+              {bgState === 'error' && (
+                <div role="alert" className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  배경 이미지 <code>{concept.bg}</code> 를 찾지 못했습니다. <code>odyssey-poster-ai/make_posters.py --textless</code> 로 먼저 만들어 주세요.
+                </div>
+              )}
+              <PosterStage
+                concept={concept}
+                visible={visible}
+                exploded={exploded}
+                posterRef={posterRef}
+                dim={!fontsReady}
+                onBgLoad={() => setBgState('ok')}
+                onBgError={() => setBgState('error')}
+              />
+              {exploded && (
+                <ol className="mt-4 flex flex-wrap justify-center gap-2 text-xs text-stone-400">
+                  {LAYERS.map((l, i) => (
+                    <li key={l.id} className="rounded-full border border-white/10 px-3 py-1">{i + 1}. {l.label}</li>
+                  ))}
+                </ol>
+              )}
+            </section>
+
+            <aside className="flex flex-col gap-4">
+              <Card title="콘셉트">
+                <div className="grid grid-cols-4 gap-2">
+                  {CONCEPTS.map((c) => (
+                    <a
+                      key={c.id}
+                      href={`#/poster/${c.id}`}
+                      aria-current={c.id === concept.id ? 'true' : undefined}
+                      className={`group overflow-hidden rounded-lg border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400
+                        ${c.id === concept.id ? 'border-amber-400' : 'border-white/10 hover:border-white/30'}`}
+                    >
+                      <img src={c.bg} alt="" className="aspect-[2/3] w-full object-cover" loading="lazy" />
+                      <span className="block py-1 text-center text-xs">{c.id} · {c.name}</span>
+                    </a>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-stone-400">{concept.desc}</p>
+              </Card>
+
+              <Card title="레이어">
+                <div className="divide-y divide-white/5">
+                  {LAYERS.map((l) => (
+                    <Switch key={l.id} label={l.label} sub={l.sub} checked={visible[l.id]} onChange={toggle(l.id)} />
+                  ))}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => setVisible(ALL_ON)}>모두 켜기</Button>
+                  <Button size="sm" variant="secondary"
+                          onClick={() => setVisible({ ...ALL_ON, bg: textOnly, scrim: textOnly })}>
+                    {textOnly ? '배경 다시 켜기' : '글자 레이어만'}
+                  </Button>
+                  <Button size="sm" variant="secondary"
+                          onClick={() => setVisible(Object.fromEntries(LAYERS.map((l) => [l.id, l.id === 'bg'])))}>
+                    배경만
+                  </Button>
+                </div>
+              </Card>
+
+              <Card title="보기 · 저장">
+                <Switch label="분해 보기" sub="레이어를 3D 로 펼쳐 겹친 순서를 보여 준다" checked={exploded} onChange={setExploded} />
+                <Button
+                  className="mt-3 w-full"
+                  size="lg"
+                  onClick={savePng}
+                  disabled={saving || exploded || !fontsReady || bgState !== 'ok'}
+                >
+                  {saving ? '합치는 중…' : `PNG 저장 (${ARTBOARD.w * EXPORT_RATIO}×${ARTBOARD.h * EXPORT_RATIO})`}
+                </Button>
+                {exploded && <p className="mt-2 text-xs text-stone-500">분해 보기를 끄면 저장할 수 있습니다.</p>}
+                {message && <p className="mt-2 text-xs text-stone-300" aria-live="polite">{message}</p>}
+              </Card>
+            </aside>
+          </main>
+        </div>
+      );
+    }
+
+    // 포스터 한 장만 1:1 로 그린다 — 헤드리스 브라우저로 PNG 를 뽑을 때 쓰는 화면
+    function RawPage({ conceptId }) {
+      const concept = CONCEPTS.find((c) => c.id === conceptId) || CONCEPTS[0];
+      const fontsReady = useFontsReady();
+      const [bgLoaded, setBgLoaded] = useState(false);
+      useEffect(() => {
+        document.documentElement.dataset.ready = fontsReady && bgLoaded ? '1' : '0';
+      }, [fontsReady, bgLoaded]);
+      return (
+        <div style={{ width: ARTBOARD.w, height: ARTBOARD.h, opacity: fontsReady ? 1 : 0 }}>
+          <Poster concept={concept} visible={ALL_ON} onBgLoad={() => setBgLoaded(true)} />
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App
+    // ========================================
+    function App() {
+      const path = useHashPath();
+      let m;
+      if ((m = matchRoute('/raw/:id', path))) return <RawPage conceptId={m.id} />;
+      if ((m = matchRoute('/poster/:id', path))) return <StudioPage conceptId={m.id} />;
+      return <StudioPage conceptId={CONCEPTS[0].id} />;
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

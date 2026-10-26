@@ -1,0 +1,15 @@
+{
+  "model": "openai/gpt-image-2/edit",
+  "request_id": "01a13558-19d5-70a0-a66c-2f5ae2efb123",
+  "quality": "high",
+  "size": "1024x1536",
+  "refs": [
+    "odyssey-images/stills/19-horse-in-waves.jpg",
+    "odyssey-images/stills/21-horse-silhouette-backlit.jpg",
+    "odyssey-images/stills/14-beach-horse-army.jpg",
+    "odyssey-images/stills/15-beach-white-horse-rider.jpg",
+    "odyssey-images/stills/18-horse-in-sea.jpg"
+  ],
+  "prompt": "Create an original theatrical one-sheet movie poster (vertical 2:3) for Christopher Nolan's\nepic film \"The Odyssey\" (2026), shot entirely on IMAX 70mm film, for the KOREAN release.\n\nThe attached images are frames from the film itself. Use them as the reference for the\nactors' faces and likenesses, costumes, props, ships, locations, lighting, color grading and\nfilm grain — keep everything consistent with them. Build a NEW poster composition; do not\nsimply crop or repeat one still. Photoreal, cinematic, rich 70mm film grain, no painterly or\nCGI illustration look, no frames or borders.\n\nKorean typography, all text sharp, correctly spelled and legible (Hangul exactly as given):\n- Main title, large: \"오디세이\" — bold, classical, chiseled serif Hangul letterforms with a subtle\n  bronze/stone texture. A small spaced Roman-capital line \"THE ODYSSEY\" sits just above it.\n- Tagline, small, near the top: \"신에 맞서다\"\n- Near the bottom: \"크리스토퍼 놀란 감독 작품\" and below it \"8월 5일 대개봉\"\n- Very small at the very bottom: \"IMAX 70MM 필름 촬영\"\nNo other text at all: no credits block, no actor names, no studio or rating logos, no watermark.\n\nConcept \"The horse\". A colossal dark bronze horse statue (exactly the ribbed, archaic horse from\nthe stills) rears up out of crashing white surf, its head reaching toward the top of the poster,\nstrongly backlit by a low sun burning through sea mist so its silhouette glows at the edges.\nFar below at the bottom, on wet reflective sand, hundreds of tiny ancient soldiers strain on long\nropes to haul it ashore, and a lone rider on a white horse stands in front of them — the human\nfigures are minuscule, selling the monumental scale. Palette: hazy amber, gold and sepia with\ndark bronze. Leave calm misty sky at the top for the tagline and the lower sand area for the\ntitle and credits.",
+  "seconds": 98
+}
