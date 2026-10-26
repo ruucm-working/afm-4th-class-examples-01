@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>꿀벌의 집단행동</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            honey: { 100: '#fff4d6', 200: '#fde7a6', 300: '#fcd264', 400: '#f6b922', 500: '#e09a07', 600: '#b87503' },
+            ink: { 700: '#36281a', 800: '#251a10', 900: '#1a120a', 950: '#110b06' },
+            cream: '#fbf3e0',
+          },
+          fontFamily: {
+            sans: ['"Noto Sans KR"', 'system-ui', 'sans-serif'],
+            serif: ['"Noto Serif KR"', 'serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <!-- ⚠️ 모든 CDN은 버전 고정. Babel 은 반드시 7.x (8.x 는 인라인 text/babel 이 깨진다) -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.9/babel.min.js"></script>
+  <style>
+    html, body { background: #1a120a; }
+    body { word-break: keep-all; -webkit-font-smoothing: antialiased; }
+    .app-shell { height: 100vh; height: 100dvh; }
+
+    @keyframes slide-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    .slide-enter { animation: slide-in .45s cubic-bezier(.2, .7, .2, 1) both; }
+
+    @keyframes bee-float { 0%, 100% { transform: translate(0, 0) rotate(-6deg); } 50% { transform: translate(8px, -10px) rotate(6deg); } }
+    .bee-float { animation: bee-float 4.5s ease-in-out infinite; }
+
+    @keyframes shiver { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-1px, 1px); } 50% { transform: translate(1px, -1px); } 75% { transform: translate(-1px, -1px); } }
+    .shiver { animation: shiver .12s linear infinite; }
+
+    @keyframes wind { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -24; } }
+    .wind { stroke-dasharray: 8 16; animation: wind .8s linear infinite; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .slide-enter, .bee-float, .shiver, .wind { animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    // ========================================
+    // React Hooks Destructuring
+    // ========================================
+    const { useState, useEffect, useRef, useCallback, useMemo, useId } = React;
+
+    // ========================================
+    // 🔧 Utilities & Hooks
+    // ========================================
+    const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+
+    // SVG url(#id) 에 쓸 수 있도록 useId 의 콜론을 뺀다
+    const useSvgId = (prefix) => `${prefix}-${useId().replace(/:/g, '')}`;
+
+    // 꼭짓점이 위를 향한 육각형
+    function hexPoints(cx, cy, r) {
+      return [-90, -30, 30, 90, 150, 210]
+        .map((deg) => {
+          const rad = (deg * Math.PI) / 180;
+          return `${(cx + r * Math.cos(rad)).toFixed(2)},${(cy + r * Math.sin(rad)).toFixed(2)}`;
+        })
+        .join(' ');
+    }
+
+    // 위쪽(0°)에서 시계 방향으로 잰 각도 → 좌표
+    function polar(cx, cy, r, deg) {
+      const rad = (deg * Math.PI) / 180;
+      return [cx + r * Math.sin(rad), cy - r * Math.cos(rad)];
+    }
+
+    function arcPath(cx, cy, r, deg) {
+      const [x0, y0] = polar(cx, cy, r, 0);
+      const [x1, y1] = polar(cx, cy, r, deg);
+      return `M ${x0} ${y0} A ${r} ${r} 0 0 ${deg >= 0 ? 1 : 0} ${x1} ${y1}`;
+    }
+
+    const describeTurn = (deg) => (deg === 0 ? '태양 쪽 정면' : `${deg > 0 ? '오른쪽' : '왼쪽'}으로 ${Math.abs(deg)}°`);
+    const formatDistance = (m) => (m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`);
+
+    function useReducedMotion() {
+      const query = '(prefers-reduced-motion: reduce)';
+      const [reduced, setReduced] = useState(() => window.matchMedia(query).matches);
+      useEffect(() => {
+        const mql = window.matchMedia(query);
+        const onChange = () => setReduced(mql.matches);
+        mql.addEventListener('change', onChange);
+        return () => mql.removeEventListener('change', onChange);
+      }, []);
+      return reduced;
+    }
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+    const Button = React.forwardRef(function Button(
+      { variant = 'primary', size = 'md', disabled = false, onClick, className = '', children, ...rest },
+      ref
+    ) {
+      const variants = {
+        primary: 'bg-honey-400 text-ink-950 hover:bg-honey-300',
+        secondary: 'border border-white/15 bg-white/5 text-cream hover:bg-white/10',
+        ghost: 'text-cream/70 hover:bg-white/5 hover:text-cream',
+      };
+      const sizes = {
+        sm: 'h-8 px-3 text-xs',
+        md: 'h-10 px-4 text-sm',
+        lg: 'h-12 px-6 text-base',
+        icon: 'h-10 w-10',
+      };
+      return (
+        <button
+          ref={ref}
+          type="button"
+          disabled={disabled}
+          onClick={onClick}
+          className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-full font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-honey-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 disabled:cursor-not-allowed disabled:opacity-30 ${variants[variant]} ${sizes[size]} ${className}`}
+          {...rest}
+        >
+          {children}
+        </button>
+      );
+    });
+
+    function Card({ className = '', children, ...rest }) {
+      return (
+        <div className={`rounded-2xl border border-white/10 bg-ink-800/80 p-4 shadow-xl shadow-black/20 sm:p-5 ${className}`} {...rest}>
+          {children}
+        </div>
+      );
+    }
+
+    function Badge({ tone = 'honey', className = '', children }) {
+      const tones = {
+        honey: 'bg-honey-400/15 text-honey-300 ring-honey-400/30',
+        sky: 'bg-sky-400/15 text-sky-300 ring-sky-400/30',
+        rose: 'bg-rose-400/15 text-rose-300 ring-rose-400/30',
+        neutral: 'bg-white/5 text-cream/70 ring-white/10',
+      };
+      return (
+        <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${tones[tone]} ${className}`}>
+          {children}
+        </span>
+      );
+    }
+
+    // 마우스로 끈 뒤엔 포커스를 풀어, ← → 가 다시 슬라이드를 넘기게 한다 (Tab 으로 들어온 키보드 사용자는 그대로)
+    function RangeInput({ id, label, value, min, max, step = 1, onChange, valueText, className = '' }) {
+      return (
+        <div className={className}>
+          <div className="mb-1.5 flex items-baseline justify-between gap-3">
+            <label htmlFor={id} className="text-sm text-cream/70">{label}</label>
+            <span className="text-sm font-bold tabular-nums text-honey-300">{valueText}</span>
+          </div>
+          <input
+            id={id}
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={(e) => onChange(Number(e.target.value))}
+            onPointerUp={(e) => e.currentTarget.blur()}
+            aria-valuetext={valueText}
+            className="h-2 w-full cursor-pointer accent-honey-400"
+          />
+        </div>
+      );
+    }
+
+    function Stat({ value, label, className = '' }) {
+      return (
+        <div className={`flex flex-col-reverse rounded-xl border border-white/10 bg-white/[0.03] p-3 ${className}`}>
+          <dt className="mt-1 text-xs leading-snug text-cream/60">{label}</dt>
+          <dd className="font-serif text-2xl font-black text-honey-300 sm:text-3xl">{value}</dd>
+        </div>
+      );
+    }
+
+    const ICON_PATHS = {
+      chevronLeft: <path d="M15 18l-6-6 6-6" />,
+      chevronRight: <path d="M9 6l6 6-6 6" />,
+      expand: <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />,
+      compress: <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />,
+      help: <><circle cx="12" cy="12" r="9" /><path d="M9.6 9.2a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6M12 17h.01" /></>,
+      play: <path d="M7 5l12 7-12 7z" fill="currentColor" />,
+      pause: <path d="M8 5v14M16 5v14" />,
+      reset: <path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" />,
+      sparkle: <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" />,
+      drop: <path d="M12 3.5c3.2 4.2 6 7.6 6 11a6 6 0 0 1-12 0c0-3.4 2.8-6.8 6-11z" />,
+      hex: <path d="M12 2.8l8 4.6v9.2l-8 4.6-8-4.6V7.4z" />,
+      shield: <path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z" />,
+      flower: <><circle cx="12" cy="12" r="2.2" /><circle cx="12" cy="6.5" r="3" /><circle cx="17.2" cy="10.3" r="3" /><circle cx="15.2" cy="16.5" r="3" /><circle cx="8.8" cy="16.5" r="3" /><circle cx="6.8" cy="10.3" r="3" /></>,
+      compass: <><circle cx="12" cy="12" r="9" /><path d="M15.5 8.5l-2 5-5 2 2-5z" /></>,
+      ruler: <path d="M3 17L17 3l4 4L7 21zM7.5 12.5l2 2M10.5 9.5l2 2M13.5 6.5l2 2" />,
+      star: <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />,
+      flame: <path d="M12 3c.5 3 4.5 5 4.5 10a4.5 4.5 0 0 1-9 0c0-2.2 1-3.6 2.2-4.6.2 1.8 1 2.8 2 3.1C11 8.5 10.5 6 12 3z" />,
+      wind: <path d="M3 8h10.5a2.5 2.5 0 1 0-2.5-2.5M3 12h15.5a2.5 2.5 0 1 1-2.5 2.5M3 16h7" />,
+      snow: <path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9" />,
+      check: <path d="M5 12.5l4.5 4.5L19 7" />,
+      thermo: <path d="M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0z" />,
+      dna: <path d="M7 3c0 6 10 6 10 12v6M17 3c0 6-10 6-10 12v6M8.5 7h7M8.5 17h7" />,
+    };
+
+    function Icon({ name, className = 'h-5 w-5' }) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+          {ICON_PATHS[name]}
+        </svg>
+      );
+    }
+
+    function BeeIcon({ size = 24, className = '' }) {
+      const clip = useSvgId('bee');
+      return (
+        <svg viewBox="0 0 32 32" width={size} height={size} className={className} aria-hidden="true">
+          <defs>
+            <clipPath id={clip}><ellipse cx="17" cy="19" rx="9.5" ry="6.5" /></clipPath>
+          </defs>
+          <ellipse cx="14" cy="10.5" rx="5.5" ry="3.6" transform="rotate(-30 14 10.5)" fill="#fbf3e0" opacity="0.75" />
+          <ellipse cx="20" cy="10" rx="5.5" ry="3.6" transform="rotate(25 20 10)" fill="#fbf3e0" opacity="0.5" />
+          <ellipse cx="17" cy="19" rx="9.5" ry="6.5" fill="#f6b922" />
+          <g clipPath={`url(#${clip})`} fill="#1a120a">
+            <rect x="14" y="10" width="2.6" height="18" />
+            <rect x="19.4" y="10" width="2.6" height="18" />
+            <rect x="24.8" y="10" width="2.6" height="18" />
+          </g>
+          <circle cx="7" cy="18.5" r="3.6" fill="#1a120a" />
+          <path d="M5.5 15.5Q4 12 2.5 11.5M7.5 15q0-3.5-1-5" stroke="#1a120a" strokeWidth="1" fill="none" strokeLinecap="round" />
+        </svg>
+      );
+    }
+
+    function HexBadge({ children, size = 'md', className = '' }) {
+      const sizes = { md: 'h-11 w-10 text-xs', lg: 'h-16 w-14 text-base' };
+      return (
+        <span className={`relative grid shrink-0 place-items-center ${sizes[size]} ${className}`}>
+          <svg viewBox="0 0 40 44" className="absolute inset-0 h-full w-full" aria-hidden="true">
+            <polygon points={hexPoints(20, 22, 19.5)} fill="rgba(246,185,34,0.14)" stroke="rgba(246,185,34,0.6)" strokeWidth="1.5" />
+          </svg>
+          <span className="relative font-bold tabular-nums text-honey-300">{children}</span>
+        </span>
+      );
+    }
+
+    function FeatureItem({ icon, title, children, className = '' }) {
+      return (
+        <div className={`flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 ${className}`}>
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-honey-400/15 text-honey-300">
+            <Icon name={icon} />
+          </span>
+          <div className="min-w-0">
+            <p className="font-bold text-cream">{title}</p>
+            <p className="mt-0.5 text-sm leading-relaxed text-cream/70">{children}</p>
+          </div>
+        </div>
+      );
+    }
+
+    function Modal({ isOpen, onClose, title, size = 'md', children }) {
+      const closeRef = useRef(null);
+      useEffect(() => {
+        if (!isOpen) return undefined;
+        const previous = document.activeElement;
+        closeRef.current?.focus();
+        const onKey = (e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            onClose();
+          }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => {
+          window.removeEventListener('keydown', onKey);
+          previous?.focus?.();
+        };
+      }, [isOpen, onClose]);
+
+      if (!isOpen) return null;
+      const sizes = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-2xl' };
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+          <div role="dialog" aria-modal="true" aria-labelledby="modal-title" className={`relative w-full ${sizes[size]} rounded-2xl border border-white/10 bg-ink-800 p-6 shadow-2xl`}>
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <h2 id="modal-title" className="font-serif text-xl font-black text-cream">{title}</h2>
+              <Button ref={closeRef} variant="ghost" size="sm" onClick={onClose} aria-label="닫기">닫기 (Esc)</Button>
+            </div>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🔀 Hash Navigation (#/1 ~ #/N)
+    // ========================================
+    function readSlideIndex(count) {
+      const match = window.location.hash.match(/^#\/(\d+)$/);
+      return clamp(match ? parseInt(match[1], 10) : 1, 1, count) - 1;
+    }
+
+    function useHashSlide(count) {
+      const [index, setIndex] = useState(() => readSlideIndex(count));
+
+      useEffect(() => {
+        const sync = () => {
+          const next = readSlideIndex(count);
+          const canonical = `#/${next + 1}`;
+          if (window.location.hash !== canonical) history.replaceState(null, '', canonical);
+          setIndex(next);
+        };
+        sync();
+        window.addEventListener('hashchange', sync);
+        return () => window.removeEventListener('hashchange', sync);
+      }, [count]);
+
+      const goTo = useCallback((i) => {
+        window.location.hash = `#/${clamp(i, 0, count - 1) + 1}`;
+      }, [count]);
+
+      return { index, goTo };
+    }
+
+    // ========================================
+    // 🧩 Common/Layout Components
+    // ========================================
+    function HexBackdrop() {
+      const hexId = useSvgId('hex');
+      const glowId = useSvgId('glow');
+      const r = 18;
+      const w = Math.sqrt(3) * r;
+      const centers = [[0, 0], [w, 0], [w / 2, 1.5 * r], [0, 3 * r], [w, 3 * r]];
+      return (
+        <svg className="pointer-events-none fixed inset-0 h-full w-full" aria-hidden="true">
+          <defs>
+            <pattern id={hexId} width={w} height={3 * r} patternUnits="userSpaceOnUse">
+              {centers.map(([cx, cy], i) => (
+                <polygon key={i} points={hexPoints(cx, cy, r)} fill="none" stroke="#f6b922" strokeOpacity="0.07" />
+              ))}
+            </pattern>
+            <radialGradient id={glowId} cx="85%" cy="0%" r="75%">
+              <stop offset="0%" stopColor="#f6b922" stopOpacity="0.16" />
+              <stop offset="100%" stopColor="#f6b922" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <rect width="100%" height="100%" fill={`url(#${glowId})`} />
+          <rect width="100%" height="100%" fill={`url(#${hexId})`} />
+        </svg>
+      );
+    }
+
+    function TopBar({ onHelp, canFullscreen, isFullscreen, onToggleFullscreen }) {
+      return (
+        <header className="relative z-10 flex h-14 shrink-0 items-center justify-between gap-3 px-4 sm:px-8">
+          <div className="flex items-center gap-2.5">
+            <BeeIcon size={26} />
+            <span className="font-serif text-sm font-bold text-cream sm:text-base">꿀벌의 집단행동</span>
+            <span className="hidden text-xs text-cream/40 sm:inline">· 지휘자 없는 지성</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={onHelp} aria-label="단축키 안내 (?)" title="단축키 안내 (?)">
+              <Icon name="help" />
+            </Button>
+            {canFullscreen && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleFullscreen}
+                aria-label={isFullscreen ? '전체 화면 끝내기 (F)' : '전체 화면 (F)'}
+                title={isFullscreen ? '전체 화면 끝내기 (F)' : '전체 화면 (F)'}
+              >
+                <Icon name={isFullscreen ? 'compress' : 'expand'} />
+              </Button>
+            )}
+          </div>
+        </header>
+      );
+    }
+
+    function ProgressBar({ index, count }) {
+      return (
+        <div className="relative z-10 h-0.5 shrink-0 bg-white/5" aria-hidden="true">
+          <div className="h-full bg-honey-400 transition-all duration-500" style={{ width: `${((index + 1) / count) * 100}%` }} />
+        </div>
+      );
+    }
+
+    function SlideNav({ slides, index, onGoTo }) {
+      const count = slides.length;
+      return (
+        <nav aria-label="슬라이드 이동" className="relative z-10 grid h-16 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-t border-white/5 px-4 sm:px-8">
+          <div className="flex justify-start">
+            <Button variant="secondary" size="icon" onClick={() => onGoTo(index - 1)} disabled={index === 0} aria-label="이전 슬라이드">
+              <Icon name="chevronLeft" />
+            </Button>
+          </div>
+          <ol className="flex items-center gap-1 sm:gap-1.5">
+            {slides.map((s, i) => {
+              const active = i === index;
+              return (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => onGoTo(i)}
+                    aria-current={active ? 'step' : undefined}
+                    aria-label={`${i + 1}. ${s.short}`}
+                    className={`group flex items-center gap-2 rounded-full p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-honey-300 md:px-3 md:py-1.5 ${active ? 'bg-honey-400/15' : 'hover:bg-white/5'}`}
+                  >
+                    <span className={`h-2 w-2 rounded-full transition ${active ? 'bg-honey-400' : 'bg-white/25 group-hover:bg-white/50'}`} />
+                    <span className={`hidden text-xs md:inline ${active ? 'font-bold text-honey-200' : 'text-cream/50'}`}>{s.short}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="flex items-center justify-end gap-3">
+            <span className="hidden text-xs tabular-nums text-cream/50 sm:inline">{index + 1} / {count}</span>
+            <Button variant="primary" size="icon" onClick={() => onGoTo(index + 1)} disabled={index === count - 1} aria-label="다음 슬라이드">
+              <Icon name="chevronRight" />
+            </Button>
+          </div>
+        </nav>
+      );
+    }
+
+    function SlideHeader({ number, eyebrow, title, lead }) {
+      return (
+        <header className="mb-5">
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold tracking-[0.2em] text-honey-400">
+            <span className="tabular-nums">{number}</span>
+            <span className="h-px w-6 bg-honey-400/50" />
+            <span>{eyebrow}</span>
+          </div>
+          <h2 className="font-serif text-3xl font-black leading-tight text-cream sm:text-4xl 2xl:text-5xl">{title}</h2>
+          {lead && <p className="mt-2 max-w-5xl text-sm leading-relaxed text-cream/70 sm:text-base">{lead}</p>}
+        </header>
+      );
+    }
+
+    // ========================================
+    // 📄 Page Components (Slides)
+    // ========================================
+
+    // ---------- 1. 표지 ----------
+    const AGENDA = [
+      { slide: 1, no: '01', title: '8자 춤', desc: '말 없이 꽃밭의 방향과 거리를 알린다' },
+      { slide: 2, no: '02', title: '나이별 분업', desc: '청소부에서 채집꾼까지, 나이가 곧 직업' },
+      { slide: 3, no: '03', title: '체온 조절', desc: '근육을 떨어 데우고 날개로 식힌다' },
+      { slide: 4, no: '04', title: '집 고르기', desc: '새 집은 정찰벌들의 투표로 정한다' },
+    ];
+
+    function CoverSlide({ onNavigate }) {
+      return (
+        <div className="grid items-center gap-8 lg:grid-cols-[1.15fr_1fr] lg:gap-12">
+          <div>
+            <Badge>생물학 · 집단지성</Badge>
+            <h1 className="mt-4 font-serif text-5xl font-black leading-[1.1] text-cream sm:text-6xl xl:text-7xl">
+              꿀벌의<br />
+              <span className="text-honey-400">집단행동</span>
+            </h1>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-cream/75 sm:text-lg">
+              벌 한 마리의 뇌에는 뉴런이 약 100만 개뿐이다. 그런데 수만 마리가 모이면, 누구의 지시도 없이
+              길을 알리고, 일을 나누고, 온도를 지키고, 새 집을 고른다.
+            </p>
+            <dl className="mt-6 grid max-w-xl grid-cols-3 gap-2 sm:gap-3">
+              <Stat value="1–6만" label="한 군집의 일벌 수 (계절 따라)" />
+              <Stat value="1" label="알을 낳는 여왕 — 명령은 안 한다" />
+              <Stat value="0" label="일을 지시하는 관리자" />
+            </dl>
+            <p className="mt-5 max-w-xl text-sm leading-relaxed text-cream/60">
+              <strong className="text-honey-300">초개체(superorganism)</strong> — 벌 한 마리 한 마리가 세포처럼 역할을 나눠,
+              군집 전체가 하나의 생명체처럼 움직인다.
+            </p>
+          </div>
+
+          <div className="relative">
+            <div className="bee-float pointer-events-none absolute -right-2 -top-8 hidden sm:block">
+              <BeeIcon size={52} />
+            </div>
+            <div className="bee-float pointer-events-none absolute -bottom-6 -left-6 hidden lg:block" style={{ animationDelay: '-2s' }}>
+              <BeeIcon size={34} />
+            </div>
+            <Card className="p-2 sm:p-3">
+              <p className="px-3 pb-1 pt-2 text-xs font-bold tracking-[0.2em] text-cream/40">오늘 볼 네 가지</p>
+              <ul>
+                {AGENDA.map((item) => (
+                  <li key={item.no}>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate(item.slide)}
+                      className="group flex w-full items-center gap-4 rounded-xl px-3 py-3 text-left transition hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-honey-300"
+                    >
+                      <HexBadge>{item.no}</HexBadge>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-bold text-cream sm:text-lg">{item.title}</span>
+                        <span className="block text-sm text-cream/55">{item.desc}</span>
+                      </span>
+                      <Icon name="chevronRight" className="h-5 w-5 text-cream/30 transition group-hover:translate-x-0.5 group-hover:text-honey-300" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // ---------- 2. 8자 춤 ----------
+    const DANCE_RULES = [
+      { icon: 'compass', title: '방향', text: "벌집판의 '위쪽'이 곧 태양 방향. 몸을 흔들며 걷는 직선이 위쪽에서 기운 각도 = 꽃밭이 태양에서 기운 각도." },
+      { icon: 'ruler', title: '거리', text: '흔들며 걷는 구간이 길수록 멀다. 대략 1초 ≈ 1 km (품종·지역마다 다르다).' },
+      { icon: 'star', title: '품질', text: '좋은 꽃밭일수록 더 여러 바퀴, 더 힘차게 춘다 → 더 많은 동료가 따라나선다.' },
+    ];
+
+    function FieldView({ angle, distance }) {
+      const cx = 110;
+      const cy = 128;
+      const reach = 28 + ((distance - 100) / 2900) * 66;
+      const [fx, fy] = polar(cx, cy, reach, angle);
+      const [lx, ly] = polar(cx, cy, 32, angle / 2);
+      return (
+        <svg viewBox="0 0 220 220" className="h-auto w-full" role="img" aria-label={`들판: 꽃밭은 태양 방향에서 ${describeTurn(angle)}, ${formatDistance(distance)} 떨어져 있다`}>
+          <rect x="2" y="2" width="216" height="216" rx="16" fill="#1f2814" />
+          <g transform={`translate(${cx} 20)`}>
+            {[0, 45, 90, 135, 180, 225, 270, 315].map((d) => {
+              const [x1, y1] = polar(0, 0, 11, d);
+              const [x2, y2] = polar(0, 0, 15, d);
+              return <line key={d} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#fcd264" strokeWidth="1.5" strokeLinecap="round" />;
+            })}
+            <circle r="8" fill="#fcd264" />
+          </g>
+          <text x={cx + 20} y="24" fill="#fcd264" fontSize="10" fontWeight="700">태양</text>
+          <line x1={cx} y1={cy} x2={cx} y2="38" stroke="#fcd264" strokeOpacity="0.5" strokeDasharray="2 4" />
+          {Math.abs(angle) >= 1 && <path d={arcPath(cx, cy, 24, angle)} fill="none" stroke="#f6b922" strokeWidth="1.5" />}
+          {Math.abs(angle) >= 20 && (
+            <text x={lx} y={ly} fill="#fcd264" fontSize="9" fontWeight="700" textAnchor="middle" dominantBaseline="middle">{Math.abs(angle)}°</text>
+          )}
+          <line x1={cx} y1={cy} x2={fx} y2={fy} stroke="#fbf3e0" strokeOpacity="0.85" strokeWidth="1.5" strokeDasharray="4 4" />
+          <g transform={`translate(${fx} ${fy})`}>
+            {[0, 72, 144, 216, 288].map((d) => {
+              const [px, py] = polar(0, 0, 5, d);
+              return <circle key={d} cx={px} cy={py} r="4" fill="#f9a8d4" />;
+            })}
+            <circle r="3" fill="#fcd264" />
+          </g>
+          <polygon points={hexPoints(cx, cy, 10)} fill="#f6b922" stroke="#b87503" strokeWidth="1.5" />
+          <text x={cx} y={cy + 24} fill="#fbf3e0" fillOpacity="0.7" fontSize="9" textAnchor="middle">벌집</text>
+        </svg>
+      );
+    }
+
+    function CombView({ angle, distance, reduceMotion }) {
+      const patternId = useSvgId('comb');
+      const cx = 110;
+      const cy = 118;
+      const seconds = distance / 1000;
+      const L = 44 + ((distance - 100) / 2900) * 56; // 흔들기 구간 길이
+      const top = cy - L / 2;
+      const bottom = cy + L / 2;
+      const ry = L / 2;
+      const rx = ry * 0.85;
+      const path = `M ${cx} ${bottom} L ${cx} ${top} A ${rx} ${ry} 0 0 1 ${cx} ${bottom} L ${cx} ${top} A ${rx} ${ry} 0 0 0 ${cx} ${bottom}`;
+
+      // 흔들기 구간의 지그재그
+      const steps = Math.max(6, Math.round(L / 5));
+      const zigzag = Array.from({ length: steps + 1 }, (_, i) => {
+        const y = bottom - (L * i) / steps;
+        const x = cx + (i === 0 || i === steps ? 0 : i % 2 ? 4 : -4);
+        return `${x},${y}`;
+      }).join(' ');
+
+      // 흔들기는 실제 초 단위로, 돌아오는 고리는 1초씩
+      const runShare = L / (L + 1.46 * L) / 2;
+      const dur = 2 * (seconds + 1);
+      const runTime = seconds / dur;
+      const [lx, ly] = polar(cx, cy, L / 2 + 26, angle / 2);
+
+      return (
+        <svg viewBox="0 0 220 220" className="h-auto w-full" role="img" aria-label={`벌집 안: 위쪽에서 ${describeTurn(angle).replace('태양 쪽 정면', '곧장 위로')} 기운 직선을 따라 약 ${seconds.toFixed(1)}초 흔든다`}>
+          <defs>
+            <pattern id={patternId} width={Math.sqrt(3) * 10} height="30" patternUnits="userSpaceOnUse">
+              {[[0, 0], [Math.sqrt(3) * 10, 0], [Math.sqrt(3) * 5, 15], [0, 30], [Math.sqrt(3) * 10, 30]].map(([x, y], i) => (
+                <polygon key={i} points={hexPoints(x, y, 10)} fill="none" stroke="#f6b922" strokeOpacity="0.16" />
+              ))}
+            </pattern>
+          </defs>
+          <rect x="2" y="2" width="216" height="216" rx="16" fill="#2c1e0c" />
+          <rect x="2" y="2" width="216" height="216" rx="16" fill={`url(#${patternId})`} />
+          <text x={cx} y="20" fill="#fcd264" fontSize="10" fontWeight="700" textAnchor="middle">↑ 위쪽 = 태양 방향</text>
+          <line x1={cx} y1={cy} x2={cx} y2="30" stroke="#fcd264" strokeOpacity="0.5" strokeDasharray="2 4" />
+          {Math.abs(angle) >= 1 && <path d={arcPath(cx, cy, L / 2 + 14, angle)} fill="none" stroke="#f6b922" strokeWidth="1.5" />}
+          {Math.abs(angle) >= 20 && (
+            <text x={lx} y={ly} fill="#fcd264" fontSize="9" fontWeight="700" textAnchor="middle" dominantBaseline="middle">{Math.abs(angle)}°</text>
+          )}
+          <g transform={`rotate(${angle} ${cx} ${cy})`}>
+            <path d={`M ${cx} ${top} A ${rx} ${ry} 0 0 1 ${cx} ${bottom} M ${cx} ${top} A ${rx} ${ry} 0 0 0 ${cx} ${bottom}`} fill="none" stroke="#fbf3e0" strokeOpacity="0.45" strokeWidth="1.2" strokeDasharray="3 4" />
+            <polyline points={zigzag} fill="none" stroke="#f6b922" strokeWidth="2.4" strokeLinejoin="round" />
+            <path d={`M ${cx - 4.5} ${top + 1} L ${cx} ${top - 6} L ${cx + 4.5} ${top + 1}`} fill="none" stroke="#f6b922" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            <g transform={reduceMotion ? `translate(${cx} ${cy}) rotate(-90)` : undefined}>
+              {!reduceMotion && (
+                <animateMotion
+                  key={distance}
+                  dur={`${dur}s`}
+                  repeatCount="indefinite"
+                  rotate="auto"
+                  path={path}
+                  calcMode="linear"
+                  keyPoints={`0;${runShare};0.5;${0.5 + runShare};1`}
+                  keyTimes={`0;${runTime / 2};0.5;${0.5 + runTime / 2};1`}
+                />
+              )}
+              <ellipse cx="-1" cy="-4" rx="3.5" ry="2" fill="#fbf3e0" opacity="0.7" />
+              <ellipse cx="-1" cy="4" rx="3.5" ry="2" fill="#fbf3e0" opacity="0.7" />
+              <ellipse rx="6" ry="3.6" fill="#f6b922" />
+              <line x1="-1.5" y1="-3.4" x2="-1.5" y2="3.4" stroke="#1a120a" strokeWidth="1.3" />
+              <line x1="1.5" y1="-3.5" x2="1.5" y2="3.5" stroke="#1a120a" strokeWidth="1.3" />
+              <circle cx="6.5" r="2.4" fill="#1a120a" />
+            </g>
+          </g>
+        </svg>
+      );
+    }
+
+    function DanceSlide() {
+      const [angle, setAngle] = useState(40);
+      const [distance, setDistance] = useState(1200);
+      const reduceMotion = useReducedMotion();
+      const seconds = distance / 1000;
+      const direction = angle === 0
+        ? '곧장 위쪽으로'
+        : `위쪽에서 ${angle > 0 ? '오른쪽' : '왼쪽'}으로 ${Math.abs(angle)}° 기운 방향으로`;
+
+      return (
+        <div>
+          <SlideHeader
+            number="01"
+            eyebrow="소통"
+            title="8자 춤: 말 없이 그리는 지도"
+            lead="꽃밭을 찾은 채집벌은 캄캄한 벌집 안, 수직으로 선 벌집판 위에서 8자를 그리며 춤춘다. 동료들은 더듬이로 춤을 따라 읽고 같은 꽃밭으로 날아간다."
+          />
+          <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr] lg:gap-8">
+            <div className="space-y-3">
+              {DANCE_RULES.map((rule) => (
+                <FeatureItem key={rule.title} icon={rule.icon} title={rule.title}>{rule.text}</FeatureItem>
+              ))}
+              <p className="px-1 text-xs leading-relaxed text-cream/50">
+                아주 가까운 먹이(수십 m 이내)는 방향 정보가 거의 없는 ‘원형춤’으로 알린다. 춤의 뜻은 카를 폰 프리슈가 풀어내
+                1973년 노벨 생리의학상을 받았다.
+              </p>
+            </div>
+
+            <Card>
+              <div className="grid grid-cols-2 gap-3">
+                <figure className="mx-auto w-full max-w-[200px]">
+                  <FieldView angle={angle} distance={distance} />
+                  <figcaption className="mt-1.5 text-center text-xs text-cream/55">들판 — 위에서 본 모습</figcaption>
+                </figure>
+                <figure className="mx-auto w-full max-w-[200px]">
+                  <CombView angle={angle} distance={distance} reduceMotion={reduceMotion} />
+                  <figcaption className="mt-1.5 text-center text-xs text-cream/55">벌집 안 — 수직 벌집판</figcaption>
+                </figure>
+              </div>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <RangeInput id="dance-angle" label="꽃밭 방향 (태양 기준)" min={-180} max={180} step={5} value={angle} onChange={setAngle} valueText={describeTurn(angle)} />
+                <RangeInput id="dance-distance" label="꽃밭까지 거리" min={100} max={3000} step={100} value={distance} onChange={setDistance} valueText={formatDistance(distance)} />
+              </div>
+              <p className="mt-4 rounded-xl bg-honey-400/10 px-4 py-2.5 text-sm leading-relaxed text-honey-100">
+                춤 해석 → {direction} 약 <strong className="text-honey-300">{seconds.toFixed(1)}초</strong> 동안 몸을 흔들며 걷고, 좌우로 번갈아 돌아와 반복한다.
+              </p>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // ---------- 3. 나이별 분업 ----------
+    const ROLES = [
+      { key: 'clean', name: '청소', from: 1, to: 2, icon: 'sparkle', place: '벌집 안', text: '막 깨어난 벌은 자기가 나온 방부터 닦는다. 깨끗이 닦인 방에만 여왕이 다시 알을 낳는다.' },
+      { key: 'nurse', name: '보육', from: 3, to: 11, icon: 'drop', place: '벌집 안 · 육아권', text: '머리의 분비샘(하인두샘)에서 로열젤리를 만들어 애벌레와 여왕에게 먹인다.' },
+      { key: 'build', name: '건축·저장', from: 12, to: 17, icon: 'hex', place: '벌집 안', text: '배의 밀랍샘에서 밀랍 조각을 내어 육각형 방을 짓고, 채집벌이 가져온 꽃꿀을 받아 수분을 날려 꿀로 숙성시킨다.' },
+      { key: 'guard', name: '경비', from: 18, to: 21, icon: 'shield', place: '입구', text: '입구를 지키며 더듬이로 냄새를 맡아 다른 군집의 벌과 침입자를 가려낸다.' },
+      { key: 'forage', name: '채집', from: 22, to: 42, icon: 'flower', place: '벌집 밖', text: '꽃꿀·꽃가루·물·나무진을 나른다. 가장 위험한 일이라 삶의 마지막에 맡는다.' },
+    ];
+    const LIFESPAN = 42;
+
+    function LaborSlide() {
+      const [day, setDay] = useState(6);
+      const role = ROLES.find((r) => day >= r.from && day <= r.to);
+
+      return (
+        <div>
+          <SlideHeader
+            number="02"
+            eyebrow="분업"
+            title="나이가 곧 직업이다"
+            lead="여름에 태어난 일벌은 약 5–6주를 산다. 그동안 나이를 먹으며 벌집 깊은 곳의 일에서 입구로, 다시 바깥 일로 옮겨 간다 — ‘연령 분업’."
+          />
+          <Card>
+            <div className="flex gap-1 sm:gap-1.5" role="group" aria-label="일벌의 나이별 역할">
+              {ROLES.map((r) => {
+                const active = r.key === role.key;
+                const span = r.to - r.from + 1;
+                return (
+                  <div key={r.key} className="flex min-w-[2.75rem] basis-0 flex-col gap-1.5 md:min-w-[4.75rem]" style={{ flexGrow: span }}>
+                    <button
+                      type="button"
+                      onClick={() => setDay(r.from)}
+                      aria-pressed={active}
+                      aria-label={`${r.name} (${r.from}–${r.to}일째)`}
+                      className={`relative flex h-14 items-center justify-center gap-2 overflow-hidden rounded-lg px-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-honey-300 ${active ? 'bg-honey-400 text-ink-950' : 'bg-white/5 text-cream/70 hover:bg-white/10'}`}
+                    >
+                      <Icon name={r.icon} className="h-5 w-5 shrink-0" />
+                      <span className="hidden truncate text-sm font-bold md:inline">{r.name}</span>
+                      {active && (
+                        <span
+                          className="absolute bottom-1 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-ink-950 transition-all"
+                          style={{ left: `${((day - r.from + 0.5) / span) * 100}%` }}
+                        />
+                      )}
+                    </button>
+                    <span className="hidden whitespace-nowrap text-center text-[11px] tabular-nums text-cream/50 sm:block">
+                      {r.to === LIFESPAN ? `${r.from}일~` : `${r.from}–${r.to}일`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <RangeInput
+              id="labor-day"
+              label="일벌의 나이를 움직여 보세요"
+              min={1}
+              max={LIFESPAN}
+              value={day}
+              onChange={setDay}
+              valueText={`${day}일째 · ${role.name}`}
+              className="mt-4"
+            />
+          </Card>
+
+          <div className="mt-5 grid gap-5 lg:grid-cols-2">
+            <Card className="flex gap-4" aria-live="polite">
+              <HexBadge size="lg"><Icon name={role.icon} className="h-6 w-6" /></HexBadge>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-serif text-2xl font-black text-cream">{role.name}</h3>
+                  <Badge>{role.to === LIFESPAN ? `${role.from}일째부터` : `${role.from}–${role.to}일째`}</Badge>
+                  <Badge tone="neutral">{role.place}</Badge>
+                </div>
+                <p className="mt-2 leading-relaxed text-cream/75">{role.text}</p>
+              </div>
+            </Card>
+            <Card className="border-honey-400/30 bg-honey-400/[0.07]">
+              <p className="font-bold text-honey-200">일정표는 고정이 아니다</p>
+              <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-cream/75">
+                <li><strong className="text-cream">보모벌이 부족하면</strong> → 채집벌 일부가 보육으로 돌아간다. 줄어들었던 분비샘이 다시 커진다.</li>
+                <li><strong className="text-cream">채집벌이 부족하면</strong> → 어린 벌이 일찍 채집에 나선다. 평소엔 채집벌이 내는 물질(에틸 올레에이트)이 어린 벌의 ‘출근’을 늦춘다.</li>
+              </ul>
+              <p className="mt-2.5 text-sm font-bold text-cream">누가 시키지 않아도, 군집의 필요가 일을 배정한다.</p>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // ---------- 4. 체온 조절 ----------
+    const THERMO_ZONES = [
+      { key: 'cluster', max: 14, preset: -2, label: '뭉치기', range: '≤14°', icon: 'snow', tone: 'sky', title: '뭉치고 떨기', text: '공처럼 뭉쳐 바깥층은 단열재가 되고, 안쪽 벌들은 비행 근육을 떨어 난로가 된다.' },
+      { key: 'heat', max: 25, preset: 20, label: '데우기', range: '15–25°', icon: 'flame', tone: 'rose', title: '근육으로 데우기', text: "날개는 멈춘 채 비행 근육만 떤다. ‘발열벌’은 번데기 방 덮개에 가슴을 붙이거나 빈 방에 들어가 주변을 데운다." },
+      { key: 'calm', max: 31, preset: 28, label: '유지', range: '26–31°', icon: 'check', tone: 'honey', title: '그대로 유지', text: '수만 마리의 체열만으로 거의 맞는다. 필요한 곳만 조금씩 데우거나 식힌다.' },
+      { key: 'fan', max: 36, preset: 34, label: '부채질', range: '32–36°', icon: 'wind', tone: 'sky', title: '날개로 부채질', text: '입구에 줄지어 서서 날갯짓으로 바람길을 만든다 — 한쪽으로 들이고 한쪽으로 뺀다.' },
+      { key: 'water', max: Infinity, preset: 40, label: '물 뿌리기', range: '37°↑', icon: 'drop', tone: 'sky', title: '물 뿌리고 부채질', text: '물을 날라 와 방에 얇게 펴 바르고 부채질해 증발열로 식힌다. 일부는 밖으로 나와 입구에 매달린다.' },
+    ];
+
+    const TONES = {
+      sky: { soft: 'bg-sky-400/10 ring-sky-400/30', text: 'text-sky-300', strong: 'bg-sky-400 text-ink-950' },
+      rose: { soft: 'bg-rose-400/10 ring-rose-400/30', text: 'text-rose-300', strong: 'bg-rose-400 text-ink-950' },
+      honey: { soft: 'bg-honey-400/10 ring-honey-400/30', text: 'text-honey-300', strong: 'bg-honey-400 text-ink-950' },
+    };
+
+    const BROOD_TEMP = 34.5;
+    const TEMP_MIN = -10;
+    const TEMP_MAX = 42;
+
+    function Thermometer({ label, value, colorClass }) {
+      const pct = clamp((value - TEMP_MIN) / (TEMP_MAX - TEMP_MIN), 0.04, 1) * 100;
+      return (
+        <div className="flex flex-col items-center gap-2">
+          <div className="font-serif text-xl font-black tabular-nums text-cream sm:text-2xl">{value.toFixed(1)}°</div>
+          <div className="relative h-32 w-4 overflow-hidden rounded-full bg-white/10 sm:h-36">
+            <div className={`absolute inset-x-0 bottom-0 rounded-full transition-all duration-300 ${colorClass}`} style={{ height: `${pct}%` }} />
+          </div>
+          <div className="text-xs text-cream/60">{label}</div>
+        </div>
+      );
+    }
+
+    function ThermoSlide() {
+      const [outside, setOutside] = useState(-2);
+      const zone = THERMO_ZONES.find((z) => outside <= z.max);
+      const tone = TONES[zone.tone];
+      const heating = zone.key === 'cluster' || zone.key === 'heat';
+      const cooling = zone.key === 'fan' || zone.key === 'water';
+      const outsideColor = outside <= 14 ? 'bg-sky-400' : outside <= 31 ? 'bg-honey-400' : 'bg-rose-400';
+
+      return (
+        <div>
+          <SlideHeader
+            number="03"
+            eyebrow="항온"
+            title="근육으로 데우고, 날개로 식힌다"
+            lead="애벌레가 자라는 육아권은 바깥이 영하든 한여름이든 약 34.5°C. 벌 한 마리는 변온동물이지만, 군집은 항온동물처럼 군다."
+          />
+          <div className="grid gap-5 lg:grid-cols-2 lg:gap-8">
+            <Card>
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                <div className="flex justify-center gap-6 sm:gap-5">
+                  <Thermometer label="바깥" value={outside} colorClass={outsideColor} />
+                  <Thermometer label="육아권" value={BROOD_TEMP} colorClass="bg-honey-400" />
+                </div>
+                <div className={`flex-1 rounded-xl p-4 ring-1 ring-inset ${tone.soft}`} aria-live="polite">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <BeeIcon size={44} className={heating ? 'shiver' : ''} />
+                      {cooling && (
+                        <svg className="absolute -right-7 top-1/2 -translate-y-1/2" width="26" height="34" viewBox="0 0 26 34" aria-hidden="true">
+                          <path className="wind" d="M2 7h20M2 17h22M2 27h16" stroke="#7dd3fc" strokeWidth="2" strokeLinecap="round" fill="none" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className={`ml-auto flex items-center gap-1.5 text-sm font-bold sm:ml-6 ${tone.text}`}>
+                      <Icon name={zone.icon} className="h-4 w-4" />
+                      {zone.title}
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-cream/80">{zone.text}</p>
+                </div>
+              </div>
+
+              <RangeInput
+                id="thermo-outside"
+                label="바깥 기온을 바꿔 보세요"
+                min={TEMP_MIN}
+                max={TEMP_MAX}
+                value={outside}
+                onChange={setOutside}
+                valueText={`${outside}°C`}
+                className="mt-5"
+              />
+              <div className="mt-3 grid grid-cols-5 gap-1" role="group" aria-label="기온 구간">
+                {THERMO_ZONES.map((z) => {
+                  const active = z.key === zone.key;
+                  return (
+                    <button
+                      key={z.key}
+                      type="button"
+                      onClick={() => setOutside(z.preset)}
+                      aria-pressed={active}
+                      className={`rounded-lg px-1 py-1.5 text-center text-[11px] leading-tight transition focus:outline-none focus-visible:ring-2 focus-visible:ring-honey-300 sm:text-xs ${active ? TONES[z.tone].strong + ' font-bold' : 'bg-white/5 text-cream/55 hover:bg-white/10'}`}
+                    >
+                      {z.label}
+                      <span className="block tabular-nums opacity-70">{z.range}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[11px] text-cream/40">구간 경계는 이해를 돕기 위한 대략값이다.</p>
+            </Card>
+
+            <div className="space-y-3">
+              <FeatureItem icon="thermo" title="왜 그렇게 정확해야 할까">
+                번데기 시절 온도가 몇 도만 낮아도, 어른이 된 뒤 학습 능력과 8자 춤 실력이 떨어진다.
+              </FeatureItem>
+              <FeatureItem icon="dna" title="다양성이 안정을 만든다">
+                여왕이 여러 수벌과 짝짓기해 일벌마다 ‘덥다’고 느끼는 기준이 다르다. 부채질하는 벌이 조금씩 늘어나 온도가 출렁이지 않는다.
+              </FeatureItem>
+              <Card className="border-rose-400/30 bg-rose-400/[0.07]">
+                <div className="flex items-center gap-2">
+                  <Icon name="flame" className="h-5 w-5 text-rose-300" />
+                  <p className="font-bold text-rose-200">열로 싸운다: 말벌을 가두는 ‘열 공’</p>
+                </div>
+                <p className="mt-1.5 text-sm leading-relaxed text-cream/75">
+                  동양꿀벌(우리 토종벌도 이 종)은 침입한 말벌을 수백 마리가 에워싸고 근육을 떨어 공 속 온도를 올린다.
+                </p>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg bg-black/20 p-2">
+                    <dd className="font-serif text-lg font-black text-rose-300">약 46°</dd>
+                    <dt className="text-[11px] text-cream/60">공 속 온도</dt>
+                  </div>
+                  <div className="rounded-lg bg-black/20 p-2">
+                    <dd className="font-serif text-lg font-black text-cream">44–46°</dd>
+                    <dt className="text-[11px] text-cream/60">말벌이 죽는 온도</dt>
+                  </div>
+                  <div className="rounded-lg bg-black/20 p-2">
+                    <dd className="font-serif text-lg font-black text-honey-300">48–50°</dd>
+                    <dt className="text-[11px] text-cream/60">꿀벌이 버티는 한계</dt>
+                  </div>
+                </dl>
+              </Card>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---------- 5. 집 고르기 (분봉 민주주의) ----------
+    const SWARM_SITES = [
+      { name: '높은 나무 구멍', desc: '약 40 L · 건조 · 좁은 입구', quality: 0.95, color: '#f6b922' },
+      { name: '헛간 벽 틈', desc: '쓸 만하지만 외풍이 든다', quality: 0.7, color: '#38bdf8' },
+      { name: '바위 밑 틈', desc: '습하고 땅에 가깝다', quality: 0.35, color: '#a78bfa' },
+      { name: '쓰러진 통나무', desc: '입구가 넓고 바닥에 있다', quality: 0.25, color: '#fb7185' },
+    ];
+
+    // 단순화 모형 — 노드에서 2,000회 돌려 맞춘 값: 최고 후보지가 약 99% 이기고, 40% 남짓은 2등 후보가 한때 앞선다
+    const SWARM = { scouts: 100, quorum: 30, discover: 0.004, follow: 0.1, stop: 0.1, maxDance: 36, tickMs: 150 };
+
+    function createSwarm() {
+      return { site: new Array(SWARM.scouts).fill(-1), dance: new Array(SWARM.scouts).fill(0), round: 0, decided: -1 };
+    }
+
+    function countSupport(site) {
+      const support = SWARM_SITES.map(() => 0);
+      site.forEach((k) => { if (k >= 0) support[k] += 1; });
+      return support;
+    }
+
+    function stepSwarm(state) {
+      if (state.decided >= 0) return state;
+      const n = SWARM.scouts;
+      const support = countSupport(state.site);
+      const strength = support.map((c, k) => c * SWARM_SITES[k].quality); // 좋은 곳일수록 춤이 길다
+      const totalStrength = strength.reduce((a, b) => a + b, 0);
+      const committed = support.reduce((a, b) => a + b, 0);
+      const site = state.site.slice();
+      const dance = state.dance.slice();
+
+      // 직접 가 보고, 품질에 비례하는 만큼만 춤춘다
+      const visit = (i, k) => {
+        const q = SWARM_SITES[k].quality;
+        const rounds = Math.round(SWARM.maxDance * q * q * (0.7 + 0.6 * Math.random()));
+        if (rounds > 0) { site[i] = k; dance[i] = rounds; }
+      };
+
+      for (let i = 0; i < n; i++) {
+        const k = state.site[i];
+        if (k < 0) {
+          if (Math.random() < SWARM.discover) {
+            visit(i, Math.floor(Math.random() * SWARM_SITES.length));
+          } else if (totalStrength > 0 && Math.random() < (SWARM.follow * totalStrength) / n) {
+            let x = Math.random() * totalStrength;
+            let pick = 0;
+            while (pick < SWARM_SITES.length - 1 && x >= strength[pick]) { x -= strength[pick]; pick += 1; }
+            visit(i, pick);
+          }
+        } else {
+          dance[i] -= 1; // 춤은 저절로 식는다
+          const rivals = committed - support[k]; // 경쟁 후보 춤꾼의 정지 신호
+          if (dance[i] <= 0 || Math.random() < (SWARM.stop * rivals) / n) {
+            site[i] = -1;
+            dance[i] = 0;
+          }
+        }
+      }
+
+      const next = countSupport(site);
+      const leader = next.indexOf(Math.max(...next));
+      return { site, dance, round: state.round + 1, decided: next[leader] >= SWARM.quorum ? leader : -1 };
+    }
+
+    const SWARM_STEPS = [
+      { title: '분봉', text: '봄, 옛 여왕과 일벌 약 1만 마리가 집을 나와 나뭇가지에 송이처럼 매달린다.' },
+      { title: '정찰', text: '수백 마리의 정찰벌이 흩어져 빈 나무 구멍을 찾고, 크기·입구·습기를 직접 점검한다.' },
+      { title: '토론', text: '돌아와 8자 춤으로 후보지를 알린다. 좋은 곳일수록 오래 추고, 춤은 갈수록 식는다. 경쟁 후보의 춤꾼에겐 머리를 박아 ‘정지 신호’를 보낸다.' },
+      { title: '정족수', text: '한 후보지에 약 15마리가 동시에 모이면 결정. ‘파이핑’ 소리로 모두 근육을 데우고 함께 날아간다.' },
+    ];
+
+    const LESSONS = ['목표를 공유하는 구성원', '리더는 답을 미리 정하지 않는다', '선택지를 넓게 찾는다', '토론으로 정보를 모은다', '정족수로 빠르게 결정한다'];
+
+    function SwarmSlide() {
+      const [swarm, setSwarm] = useState(createSwarm);
+      const [running, setRunning] = useState(false);
+      const support = useMemo(() => countSupport(swarm.site), [swarm.site]);
+      const leader = support.indexOf(Math.max(...support));
+      const done = swarm.decided >= 0;
+
+      useEffect(() => {
+        if (!running) return undefined;
+        const id = setInterval(() => setSwarm((s) => stepSwarm(s)), SWARM.tickMs);
+        return () => clearInterval(id);
+      }, [running]);
+
+      useEffect(() => {
+        if (done) setRunning(false);
+      }, [done]);
+
+      const reset = () => {
+        setRunning(false);
+        setSwarm(createSwarm());
+      };
+
+      let status;
+      if (done) status = <><strong style={{ color: SWARM_SITES[swarm.decided].color }}>{SWARM_SITES[swarm.decided].name}</strong>에 정족수 도달 — 파이핑 신호가 울리고 벌떼 전체가 날아오른다.</>;
+      else if (swarm.round === 0) status = '‘시작’을 누르고 정찰벌들의 토론을 지켜보세요. 매번 과정이 조금씩 다르다.';
+      else if (support[leader] < 5) status = '정찰벌들이 흩어져 후보지를 살피는 중…';
+      else status = <>지금 가장 많은 지지: <strong style={{ color: SWARM_SITES[leader].color }}>{SWARM_SITES[leader].name}</strong> ({support[leader]}마리)</>;
+
+      return (
+        <div>
+          <SlideHeader
+            number="04"
+            eyebrow="의사결정"
+            title="새 집은 투표로 정한다"
+            lead="여왕도 결정하지 않는다. 수백 마리의 정찰벌이 후보지를 직접 보고 와서 춤으로 토론하고, 지지가 한곳으로 모이면 그곳으로 간다."
+          />
+          <div className="grid gap-5 lg:grid-cols-[1fr_1.15fr] lg:gap-8">
+            <div className="space-y-4">
+              <ol className="space-y-2.5">
+                {SWARM_STEPS.map((step, i) => (
+                  <li key={step.title} className="flex gap-3">
+                    <HexBadge>{i + 1}</HexBadge>
+                    <p className="min-w-0 text-sm leading-relaxed text-cream/70">
+                      <strong className="mr-1.5 text-cream">{step.title}</strong>{step.text}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+              <div className="rounded-xl border border-honey-400/30 bg-honey-400/[0.07] p-3.5">
+                <p className="text-sm font-bold text-honey-200">벌에게 배우는 회의법</p>
+                <ol className="mt-2 flex flex-wrap gap-1.5">
+                  {LESSONS.map((lesson, i) => (
+                    <li key={lesson}><Badge tone="neutral"><span className="tabular-nums text-honey-300">{i + 1}</span>{lesson}</Badge></li>
+                  ))}
+                </ol>
+                <p className="mt-2 text-[11px] text-cream/45">토머스 D. 실리, 『꿀벌의 민주주의』(2010)에서</p>
+              </div>
+            </div>
+
+            <Card>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-bold text-cream">직접 해 보기: 정찰벌 {SWARM.scouts}마리의 토론</p>
+                  <p className="text-xs tabular-nums text-cream/50">라운드 {swarm.round}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => setRunning((r) => !r)} disabled={done} aria-label={running ? '멈춤' : '시작'}>
+                    <Icon name={running ? 'pause' : 'play'} className="h-4 w-4" />
+                    {running ? '멈춤' : swarm.round === 0 ? '시작' : '계속'}
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={reset} disabled={swarm.round === 0} aria-label="처음부터 다시">
+                    <Icon name="reset" className="h-4 w-4" />다시
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-3 grid justify-items-center gap-y-1.5" style={{ gridTemplateColumns: 'repeat(25, minmax(0, 1fr))' }} aria-hidden="true">
+                {swarm.site.map((k, i) => (
+                  <span
+                    key={i}
+                    className="h-2.5 w-2.5 rounded-full transition-colors duration-300"
+                    style={{ backgroundColor: k >= 0 ? SWARM_SITES[k].color : 'rgba(251,243,224,0.14)' }}
+                  />
+                ))}
+              </div>
+
+              <ul className="mt-4 space-y-2.5">
+                {SWARM_SITES.map((s, k) => {
+                  const width = Math.min(support[k] / (SWARM.quorum * 1.25), 1) * 100;
+                  const winner = swarm.decided === k;
+                  return (
+                    <li key={s.name} className="grid grid-cols-[minmax(0,9.5rem)_1fr_2rem] items-center gap-3 sm:grid-cols-[minmax(0,11rem)_1fr_2rem]">
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-1.5 truncate text-sm font-bold text-cream">
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+                          {s.name}
+                          {winner && <Icon name="check" className="h-4 w-4 text-honey-300" />}
+                        </p>
+                        <p className="truncate text-[11px] text-cream/50">{s.desc}</p>
+                      </div>
+                      <div className="relative h-3 rounded-full bg-white/5">
+                        <div className="h-full rounded-full transition-all duration-150" style={{ width: `${width}%`, backgroundColor: s.color }} />
+                        <div className="absolute inset-y-[-4px] w-px bg-cream/60" style={{ left: '80%' }} aria-hidden="true" />
+                      </div>
+                      <span className="text-right text-sm font-bold tabular-nums text-cream/80">{support[k]}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-1 grid grid-cols-[minmax(0,9.5rem)_1fr_2rem] gap-3 sm:grid-cols-[minmax(0,11rem)_1fr_2rem]" aria-hidden="true">
+                <span />
+                <span className="relative h-4 text-[11px] text-cream/50">
+                  <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: '80%' }}>정족수 {SWARM.quorum}</span>
+                </span>
+              </div>
+
+              <p className="mt-2 min-h-[2.75rem] rounded-xl bg-white/[0.04] px-3.5 py-2.5 text-sm leading-relaxed text-cream/80" aria-live="polite">
+                {status}
+              </p>
+              <p className="mt-2 text-[11px] leading-relaxed text-cream/40">
+                단순화한 모형(정족수 = 지지 정찰벌 {SWARM.quorum}마리). 실제 벌떼는 한 후보지에 약 15마리가 동시에 모이면 결정한다.
+              </p>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App Component
+    // ========================================
+    const SLIDES = [
+      { id: 'cover', short: '표지', title: '꿀벌의 집단행동', Component: CoverSlide },
+      { id: 'dance', short: '8자 춤', title: '8자 춤: 말 없이 그리는 지도', Component: DanceSlide },
+      { id: 'labor', short: '분업', title: '나이가 곧 직업이다', Component: LaborSlide },
+      { id: 'thermo', short: '체온', title: '근육으로 데우고, 날개로 식힌다', Component: ThermoSlide },
+      { id: 'swarm', short: '집 고르기', title: '새 집은 투표로 정한다', Component: SwarmSlide },
+    ];
+
+    const SHORTCUTS = [
+      ['→ · Space · PageDown', '다음 슬라이드'],
+      ['← · Shift+Space · PageUp', '이전 슬라이드'],
+      ['Home · End', '처음 · 마지막'],
+      [`1 – ${SLIDES.length}`, '해당 슬라이드로 바로 가기'],
+      ['F', '전체 화면'],
+      ['Esc', '슬라이더에서 빠져나오기 (그다음 ← → 로 이동)'],
+      ['?', '이 안내 열기'],
+    ];
+
+    function App() {
+      const { index, goTo } = useHashSlide(SLIDES.length);
+      const [helpOpen, setHelpOpen] = useState(false);
+      const [isFullscreen, setIsFullscreen] = useState(false);
+      const mainRef = useRef(null);
+      const touchRef = useRef(null);
+      const canFullscreen = Boolean(document.fullscreenEnabled);
+      const current = SLIDES[index];
+      const { Component } = current;
+
+      const closeHelp = useCallback(() => setHelpOpen(false), []);
+
+      const toggleFullscreen = useCallback(() => {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen?.().catch(() => {});
+      }, []);
+
+      useEffect(() => {
+        const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+        document.addEventListener('fullscreenchange', onChange);
+        return () => document.removeEventListener('fullscreenchange', onChange);
+      }, []);
+
+      useEffect(() => {
+        mainRef.current?.scrollTo(0, 0);
+      }, [index]);
+
+      useEffect(() => {
+        if (helpOpen) return undefined;
+        const onKey = (e) => {
+          if (e.metaKey || e.ctrlKey || e.altKey) return;
+          const el = e.target;
+          const isField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable;
+          const isButton = el.tagName === 'BUTTON';
+
+          if (e.key === 'Escape' && isField) { el.blur(); return; }
+          if (e.key === '?' || (e.code === 'Slash' && e.shiftKey)) { e.preventDefault(); setHelpOpen(true); return; }
+          if (isField) return; // 슬라이더는 방향키를 그대로 쓴다
+
+          if (e.key === 'ArrowRight' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey && !isButton)) {
+            e.preventDefault();
+            goTo(index + 1);
+          } else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey && !isButton)) {
+            e.preventDefault();
+            goTo(index - 1);
+          } else if (e.key === 'Home') {
+            e.preventDefault();
+            goTo(0);
+          } else if (e.key === 'End') {
+            e.preventDefault();
+            goTo(SLIDES.length - 1);
+          } else if (e.code === 'KeyF') {
+            toggleFullscreen();
+          } else if (/^[1-9]$/.test(e.key) && Number(e.key) <= SLIDES.length) {
+            goTo(Number(e.key) - 1);
+          }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, [index, goTo, helpOpen, toggleFullscreen]);
+
+      const onTouchStart = (e) => {
+        if (e.target.closest('input, button')) { touchRef.current = null; return; }
+        const t = e.touches[0];
+        touchRef.current = { x: t.clientX, y: t.clientY };
+      };
+
+      const onTouchEnd = (e) => {
+        const start = touchRef.current;
+        touchRef.current = null;
+        if (!start) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - start.x;
+        const dy = t.clientY - start.y;
+        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) goTo(index + (dx < 0 ? 1 : -1));
+      };
+
+      return (
+        <div className="app-shell relative flex flex-col overflow-hidden bg-ink-900 font-sans text-cream">
+          <HexBackdrop />
+          <TopBar
+            onHelp={() => setHelpOpen(true)}
+            canFullscreen={canFullscreen}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={toggleFullscreen}
+          />
+          <ProgressBar index={index} count={SLIDES.length} />
+
+          <main ref={mainRef} className="relative z-10 flex-1 overflow-y-auto" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+            <section
+              key={current.id}
+              aria-roledescription="slide"
+              aria-label={`${index + 1} / ${SLIDES.length}: ${current.title}`}
+              className="slide-enter mx-auto flex min-h-full w-full max-w-6xl flex-col justify-center px-4 py-6 sm:px-8 lg:py-4 2xl:max-w-7xl"
+            >
+              <Component onNavigate={goTo} />
+            </section>
+          </main>
+
+          <SlideNav slides={SLIDES} index={index} onGoTo={goTo} />
+
+          <div className="sr-only" aria-live="polite">{`슬라이드 ${index + 1} / ${SLIDES.length}: ${current.title}`}</div>
+
+          <Modal isOpen={helpOpen} onClose={closeHelp} title="단축키">
+            <dl className="divide-y divide-white/5 text-sm">
+              {SHORTCUTS.map(([keys, action]) => (
+                <div key={keys} className="flex items-center justify-between gap-4 py-2">
+                  <dt className="text-cream/70">{action}</dt>
+                  <dd><kbd className="whitespace-nowrap rounded-md border border-white/15 bg-white/5 px-2 py-0.5 font-sans text-xs text-honey-200">{keys}</kbd></dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-4 text-xs text-cream/50">휴대폰에서는 좌우로 밀어서 넘길 수 있다.</p>
+          </Modal>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
